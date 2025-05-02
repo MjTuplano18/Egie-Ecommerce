@@ -79,9 +79,9 @@ const Navbar = ({isAuth}) => {
   return (
     <div className={`navbar ${isAuth ? "auth-navbar" : "main-navbar"}`}>
       {isAuth ? (
-        <div className="auth-header">
-          <div className="auth-Navbar">
-            <div className="auth-logo">
+        <div className="auth-header ">
+          <div className="auth-Navbar h-20 bg-black flex justify-center">
+            <div className="auth-logo h-[250px] w-[250px]">
               <img
                 src="https://i.ibb.co/Cpx2BBt5/egie-removebg-preview-1.png"
                 alt="EGIE Game Shop"
@@ -163,7 +163,8 @@ const Navbar = ({isAuth}) => {
                 </div>
                 <ul className="flex flex-col p-4 md:p-0 mt-4 font-medium border border-gray-100 rounded-lg  md:space-x-8 rtl:space-x-reverse md:flex-row md:mt-0 md:border-0">
                   <li>
-                    <Link to="/"
+                    <Link
+                      to="/"
                       href="#"
                       className="block py-2 px-3 bg-blue-700 rounded-sm md:text-[#3e80349b] md:p-0 hover:text-black md:bg-[#F3F7F6]"
                       aria-current="page"
@@ -198,7 +199,7 @@ const Navbar = ({isAuth}) => {
 
                     <div
                       id="mega-menu-dropdown"
-                      className="absolute z-10 hidden grid w-auto grid-cols-2 text-sm bg-white border border-gray-100 rounded-lg shadow-md dark:border-gray-700 md:grid-cols-3 dark:bg-gray-700"
+                      className="absolute z-1000 hidden grid w-auto grid-cols-2 text-sm bg-white border border-gray-100 rounded-lg shadow-md dark:border-gray-700 md:grid-cols-3 dark:bg-gray-700"
                     >
                       {categorizedParts.map((section, index) => (
                         <div
@@ -209,7 +210,8 @@ const Navbar = ({isAuth}) => {
                           <ul className="space-y-2">
                             {section.items.map((item, idx) => (
                               <li key={idx}>
-                                <Link to="/products"
+                                <Link
+                                  to="/products"
                                   href="#"
                                   className="text-gray-500 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-500"
                                 >
@@ -297,17 +299,14 @@ const Navbar = ({isAuth}) => {
                 >
                   {isSignedIn ? (
                     <>
-                      <button className="relative inline-flex items-center justify-center p-0.5 mb-2 me-2 overflow-hidden text-sm font-medium text-gray-900 rounded-lg group bg-gradient-to-br from-teal-300 to-lime-300 group-hover:from-teal-300 group-hover:to-lime-300 ">
-                        <span className="relative px-5 py-2.5 transition-all ease-in duration-75 bg-white rounded-md group-hover:bg-transparent group-hover:dark:bg-transparent">
-                          <IoBookmark className="bookmark" />
-                        </span>
-                      </button>
-
-                      <button className="relative inline-flex items-center justify-center p-0.5 mb-2 me-2 overflow-hidden text-sm font-medium text-gray-900 rounded-lg group bg-gradient-to-br from-teal-300 to-lime-300 group-hover:from-teal-300 group-hover:to-lime-300 ">
+                      <Link
+                        to="/cart"
+                        className="relative inline-flex items-center justify-center p-0.5 mb-2 me-2 overflow-hidden text-sm font-medium text-gray-900 rounded-lg group bg-gradient-to-br from-teal-300 to-lime-300 group-hover:from-teal-300 group-hover:to-lime-300 "
+                      >
                         <span className="relative px-5 py-2.5 transition-all ease-in duration-75 bg-white rounded-md group-hover:bg-transparent group-hover:dark:bg-transparent">
                           <FaShoppingCart className="cart" />
                         </span>
-                      </button>
+                      </Link>
 
                       <button className="relative inline-flex items-center justify-center p-0.5 mb-2 me-2 overflow-hidden text-sm font-medium text-gray-900 rounded-lg group bg-gradient-to-br from-teal-300 to-lime-300 group-hover:from-teal-300 group-hover:to-lime-300 ">
                         <span className="relative px-5 py-2.5 transition-all ease-in duration-75 bg-white rounded-md group-hover:bg-transparent group-hover:dark:bg-transparent">

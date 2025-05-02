@@ -9,7 +9,9 @@ import Products from './views/Products/Products'
 import ProductDetails from './views/Products/ProductGrid/ProductDetails/ProductDetails';
 import Cart from './views/Cart/Cart';
 import Checkout from './views/Checkout/Checkout';
-import ThankYou from './views/Thankyou/Thankyou';
+import ThankYou from './views/Checkout/Thankyou';
+
+import { Toaster } from "sonner";
 
 function App() {
 
@@ -36,13 +38,14 @@ const Main = () => {
         <Route path="/auth" element={<SignUp />} />
         <Route path="/signin" element={<SignIn />} />
         <Route path="/products" element={<Products />} />
-        <Route path="/products/details/:id" element={<ProductDetails />} />
+        <Route path="/products/details/:id" element={<ProductDetails  />} />
         <Route path="/cart" element={<Cart />} />
         <Route path="/checkout" element={<Checkout />} />
-        <Route path="/checkout/thankyou" element={<ThankYou />} />
+        <Route path="/thankyou" element={<ThankYou />} />
         {/* Add more routes as needed */}
       </Routes>
-      <Footer isAuth={isAuthPage}/>
+      <Footer isAuth={isAuthPage} />
+      <Toaster richColors position="bottom-right" />
     </>
   );
 };
