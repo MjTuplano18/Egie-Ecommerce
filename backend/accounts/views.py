@@ -29,11 +29,11 @@ def signup(request):
                       status=status.HTTP_400_BAD_REQUEST)
 
     if Customer.objects.filter(username=username).exists():
-        return Response({'message': 'Username already exists!'}, 
+        return Response({'message': 'Username already exists!'},
                       status=status.HTTP_400_BAD_REQUEST)
 
     if Customer.objects.filter(email=email).exists():
-        return Response({'message': 'Email already exists!'}, 
+        return Response({'message': 'Email already exists!'},
                       status=status.HTTP_400_BAD_REQUEST)
 
     try:
@@ -56,22 +56,44 @@ def signup(request):
         }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 # --- SIGN IN ---
+# --- SIGN IN ---
 @api_view(['POST'])
 @permission_classes([AllowAny])
 @csrf_exempt
 def signin(request):
-    username = request.data.get('username')
+    email = request.data.get('email')
     password = request.data.get('password')
 
-    if not username or not password:
-        return Response({'message': 'Username and password are required!'}, status=status.HTTP_400_BAD_REQUEST)
+    if not email or not password:
+        return Response({'message': 'Email and password are required!'}, status=status.HTTP_400_BAD_REQUEST)
 
-    user = authenticate(username=username, password=password)
+    try:
+        # Get the user with the provided email
+        customer = Customer.objects.get(email=email)
 
-    if user is not None:
-        return Response({'message': 'Login successful!'}, status=status.HTTP_200_OK)
-    else:
-        return Response({'message': 'Invalid credentials!'}, status=status.HTTP_401_UNAUTHORIZED)
+        # Authenticate with the username associated with this email
+        user = authenticate(username=customer.username, password=password)
+
+        if user is not None:
+            login(request, user)
+            return Response({
+                'message': 'Login successful!',
+                'token': 'your-token-generation-logic-here',  # You might want to generate a token
+                'user': {
+                    'id': user.id,
+                    'username': user.username,
+                    'email': user.email,
+                    # Add other user fields as needed
+                }
+            }, status=status.HTTP_200_OK)
+        else:
+            return Response({'message': 'Invalid password!'}, status=status.HTTP_401_UNAUTHORIZED)
+
+    except Customer.DoesNotExist:
+        return Response({'message': 'Invalid Credentials!'}, status=status.HTTP_401_UNAUTHORIZED)
+    except Exception as e:
+        return Response({'message': f'An error occurred: {str(e)}'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
 
 @api_view(['POST'])
 @permission_classes([AllowAny])
