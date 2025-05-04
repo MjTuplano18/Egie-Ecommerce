@@ -1,7 +1,7 @@
 import { initializeApp } from "firebase/app";
-import { 
-  getAuth, 
-  GoogleAuthProvider, 
+import {
+  getAuth,
+  GoogleAuthProvider,
   FacebookAuthProvider,
   createUserWithEmailAndPassword,
   sendEmailVerification,
@@ -85,5 +85,7 @@ export const verifyEmail = async (actionCode) => {
     throw error;
   }
 };
+
+
 
 export default app;

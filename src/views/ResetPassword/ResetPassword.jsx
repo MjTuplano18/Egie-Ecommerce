@@ -1,123 +1,159 @@
-import React, { useState, useEffect } from 'react';
-import { auth } from '../../firebase';
-import { confirmPasswordReset, verifyPasswordResetCode } from 'firebase/auth';
-import { useNavigate, useLocation } from 'react-router-dom';
+// src/views/ResetPassword/ResetPassword.jsx
+import React, { useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
+import { FaEye, FaEyeSlash } from "react-icons/fa";
 
 const ResetPassword = () => {
-  const [newPassword, setNewPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
-  const [message, setMessage] = useState('');
+  const [email, setEmail] = useState("");
+  const [verificationCode, setVerificationCode] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+  const [message, setMessage] = useState("");
   const [isLoading, setIsLoading] = useState(false);
-  const [userEmail, setUserEmail] = useState('');
   const navigate = useNavigate();
-  const location = useLocation();
-
-  const oobCode = new URLSearchParams(location.search).get('oobCode');
-
-  useEffect(() => {
-    const verifyCode = async () => {
-      if (!oobCode) {
-        setMessage('Invalid password reset link');
-        return;
-      }
-
-      try {
-        const email = await verifyPasswordResetCode(auth, oobCode);
-        setUserEmail(email);
-      } catch (error) {
-        setMessage('Invalid or expired password reset link');
-      }
-    };
-
-    verifyCode();
-  }, [oobCode]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    setMessage("");
 
-    if (newPassword !== confirmPassword) {
-      setMessage('Passwords do not match');
+    // Validate inputs
+    if (!email || !verificationCode || !newPassword) {
+      setMessage("Please fill in all fields");
       return;
     }
 
-    if (!userEmail) {
-      setMessage('Could not determine your email address. Please try again.');
+    if (newPassword !== confirmPassword) {
+      setMessage("Passwords do not match");
+      return;
+    }
+
+    if (newPassword.length < 8) {
+      setMessage("Password must be at least 8 characters long");
       return;
     }
 
     setIsLoading(true);
-    setMessage('');
 
     try {
-      await confirmPasswordReset(auth, oobCode, newPassword);
-
-      const response = await fetch('http://localhost:8000/api/update-password/', {
-        method: 'POST',
+      const response = await fetch("http://127.0.0.1:8000/api/verify-and-reset-password/", {
+        method: "POST",
         headers: {
-          'Content-Type': 'application/json',
+          "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          email: userEmail,
-          new_password: newPassword,
+          email,
+          verification_code: verificationCode,
+          new_password: newPassword
         }),
       });
 
-      const responseData = await response.json();
+      const data = await response.json();
 
-      if (!response.ok) {
-        throw new Error(responseData.message || 'Failed to update password in database');
+      if (response.ok && data.success) {
+        setMessage("Password reset successful! Redirecting to login...");
+        setTimeout(() => navigate("/signin"), 2000);
+      } else {
+        setMessage(data.message || "Failed to reset password. Please try again.");
       }
-
-      setMessage('Password successfully reset! Redirecting to sign in page...');
-      setTimeout(() => navigate('/signin'), 3000);
     } catch (error) {
-      setMessage(error.message || 'An error occurred during password reset');
+      console.error("Error resetting password:", error);
+      setMessage("An error occurred. Please try again later.");
     } finally {
       setIsLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-100 px-4">
-      <div className="bg-white p-8 rounded-2xl shadow-lg w-full max-w-md">
-        <h2 className="text-2xl font-bold text-center text-gray-800 mb-6">Set New Password</h2>
+    <div className="min-h-screen flex items-center justify-center bg-gray-100">
+      <div className="bg-white p-8 rounded-lg shadow-md w-full max-w-md">
+        <h2 className="text-2xl font-bold mb-6 text-center text-gray-800">Reset Your Password</h2>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
+        <form onSubmit={handleSubmit}>
+          <div className="mb-4">
+            <label htmlFor="email" className="block text-gray-700 mb-2">
+              Email Address
+            </label>
             <input
-              type="password"
-              placeholder="New Password"
-              value={newPassword}
-              onChange={(e) => setNewPassword(e.target.value)}
-              required
-              minLength="6"
-              className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
+              type="email"
+              id="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              className="w-full p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-green-500"
+              placeholder="Enter your email"
             />
           </div>
-          <div>
+
+          <div className="mb-4">
+            <label htmlFor="verificationCode" className="block text-gray-700 mb-2">
+              Verification Code
+            </label>
             <input
-              type="password"
-              placeholder="Confirm New Password"
+              type="text"
+              id="verificationCode"
+              value={verificationCode}
+              onChange={(e) => setVerificationCode(e.target.value)}
+              className="w-full p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-green-500"
+              placeholder="Enter verification code from email"
+            />
+          </div>
+
+          <div className="mb-4">
+            <label htmlFor="newPassword" className="block text-gray-700 mb-2">
+              New Password
+            </label>
+            <div className="relative">
+              <input
+                type={showPassword ? "text" : "password"}
+                id="newPassword"
+                value={newPassword}
+                onChange={(e) => setNewPassword(e.target.value)}
+                className="w-full p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-green-500 pr-10"
+                placeholder="Enter new password"
+              />
+              <button
+                type="button"
+                className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500"
+                onClick={() => setShowPassword(!showPassword)}
+              >
+                {showPassword ? <FaEyeSlash /> : <FaEye />}
+              </button>
+            </div>
+          </div>
+
+          <div className="mb-6">
+            <label htmlFor="confirmPassword" className="block text-gray-700 mb-2">
+              Confirm Password
+            </label>
+            <input
+              type={showPassword ? "text" : "password"}
+              id="confirmPassword"
               value={confirmPassword}
               onChange={(e) => setConfirmPassword(e.target.value)}
-              required
-              minLength="6"
-              className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
+              className="w-full p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-green-500"
+              placeholder="Confirm new password"
             />
           </div>
+
+          {message && (
+            <div className={`mb-4 text-sm ${message.includes("successful") ? "text-green-500" : "text-red-500"}`}>
+              {message}
+            </div>
+          )}
+
           <button
             type="submit"
             disabled={isLoading}
-            className={`w-full py-3 rounded-xl font-semibold text-white transition ${
-              isLoading ? 'bg-blue-300 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700'
-            }`}
+            className="w-full bg-green-500 text-white px-4 py-2 rounded-md hover:bg-green-600 transition duration-200"
           >
-            {isLoading ? 'Resetting...' : 'Reset Password'}
+            {isLoading ? "Resetting..." : "Reset Password"}
           </button>
 
-          {message && (
-            <p className="text-center text-sm mt-4 text-red-600">{message}</p>
-          )}
+          <div className="mt-4 text-center">
+            <Link to="/forgot-password" className="text-green-500 hover:text-green-700">
+              Request a new code
+            </Link>
+          </div>
         </form>
       </div>
     </div>
