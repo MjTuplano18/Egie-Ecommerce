@@ -28,6 +28,8 @@ def signup(request):
     email = request.data.get('email')
     password = request.data.get('password')
     firebase_uid = request.data.get('firebaseUid')
+    first_name = request.data.get('firstName')
+    last_name = request.data.get('lastName')
 
     if not all([username, email, password, firebase_uid]):
         return Response({'message': 'All fields are required!'},
@@ -48,6 +50,17 @@ def signup(request):
             email=email,
             password=password,
         )
+        
+        # Save first name and last name if provided
+        if first_name:
+            customer.first_name = first_name
+        if last_name:
+            customer.last_name = last_name
+            
+        # Save firebase UID if needed
+        # customer.firebase_uid = firebase_uid  # Uncomment if you have this field in your model
+        
+        customer.save()
 
         return Response({
             'message': f'User {username} registered successfully!'
@@ -98,6 +111,10 @@ def signin(request):
         return Response({'message': f'An error occurred: {str(e)}'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
+from django.core.mail import send_mail
+from django.template.loader import render_to_string
+from django.utils.html import strip_tags
+
 @api_view(['POST'])
 @permission_classes([AllowAny])
 @csrf_exempt
@@ -121,14 +138,26 @@ def request_password_reset(request):
         user.verification_code_timestamp = timezone.now()
         user.save()
         
-        # Send email with verification code
-        subject = 'Password Reset Verification Code'
-        message = f'Your password reset verification code is: {verification_code}\nThis code will expire in 10 minutes.'
+        # Prepare email content
+        html_message = render_to_string('email/password_reset.html', {
+            'verification_code': verification_code
+        })
+        plain_message = strip_tags(html_message)
+
+        # Send email with HTML content
+        subject = 'EGIE GameShop - Password Reset Verification Code'
         from_email = settings.DEFAULT_FROM_EMAIL
         recipient_list = [email]
         
         try:
-            send_mail(subject, message, from_email, recipient_list)
+            send_mail(
+                subject,
+                plain_message,
+                from_email,
+                recipient_list,
+                html_message=html_message,
+                fail_silently=False
+            )
             return Response({
                 'message': 'Verification code sent to your email',
                 'success': True
@@ -150,6 +179,7 @@ def request_password_reset(request):
             'message': f'Error processing request: {str(e)}',
             'success': False
         }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
 
 @api_view(['POST'])
 @permission_classes([AllowAny])
