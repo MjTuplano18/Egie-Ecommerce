@@ -63,7 +63,7 @@ const Navbar = ({isAuth}) => {
     const checkAuthStatus = () => {
       const userDataString = localStorage.getItem('user');
       const token = localStorage.getItem('authToken');
-      
+
       if (userDataString && token) {
         try {
           const userData = JSON.parse(userDataString);
@@ -78,20 +78,20 @@ const Navbar = ({isAuth}) => {
         setUserData(null);
       }
     };
-    
+
     // Check auth status when component mounts
     checkAuthStatus();
-    
+
     // Listen for auth change events
     window.addEventListener('auth-change', checkAuthStatus);
-    
+
     // Add event listener for storage changes (for multi-tab support)
     window.addEventListener('storage', (event) => {
       if (event.key === 'authToken' || event.key === 'user') {
         checkAuthStatus();
       }
     });
-    
+
     // Clean up event listeners
     return () => {
       window.removeEventListener('auth-change', checkAuthStatus);
@@ -106,10 +106,10 @@ const Navbar = ({isAuth}) => {
 
     setIsSignedIn(false);
     setUserData(null);
-    
+
     // Dispatch auth change event
     window.dispatchEvent(new Event('auth-change'));
-    
+
     navigate("/signin"); // Redirect to Sign In page
   };
 

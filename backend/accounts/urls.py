@@ -13,6 +13,10 @@ urlpatterns = [
     path('api/verify-and-reset-password/', views.verify_and_reset_password, name='verify_and_reset_password'),
     path('api/reset-password/', views.reset_password, name='reset_password'),  # Direct reset (admin/emergency)
 
+    # User profile endpoints
+    path('api/update-profile/', views.update_profile, name='update_profile'),
+    path('api/change-password/', views.change_password, name='change_password'),
+
     # Serve React App - catch all other URLs
     re_path(r'^.*', views.index, name='index'),
 ]

@@ -21,6 +21,8 @@ from django.views.decorators.csrf import ensure_csrf_cookie
 from django.http import HttpResponse
 from rest_framework import routers
 from products.views import ProductViewSet
+from django.conf import settings
+from django.conf.urls.static import static
 
 #Router and registration for viewsets
 router =routers.DefaultRouter()
@@ -43,3 +45,6 @@ urlpatterns = [
     # This should be the LAST pattern as it might be catching all requests
     path('', include('accounts.urls')),
 ]
+
+if settings.DEBUG:
+    urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

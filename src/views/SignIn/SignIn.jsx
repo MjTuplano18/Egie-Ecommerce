@@ -40,7 +40,7 @@ const SignIn = () => {
         
         // Store auth token and user data
         localStorage.setItem("authToken", data.token);
-        
+
         // Make sure we have the user's name for display in navbar
         const userData = {
           ...data.user,
@@ -52,7 +52,7 @@ const SignIn = () => {
         
         // Dispatch a custom event to notify other components about login
         window.dispatchEvent(new Event('auth-change'));
-        
+
         setTimeout(() => navigate("/"), 1500);
       } else {
         setMessage(data.message || "Sign In failed!");
@@ -83,7 +83,7 @@ const SignIn = () => {
 
       localStorage.setItem("authToken", user.accessToken);
       localStorage.setItem("user", JSON.stringify(userData));
-      
+
       // Dispatch a custom event to notify other components about login
       window.dispatchEvent(new Event('auth-change'));
 
