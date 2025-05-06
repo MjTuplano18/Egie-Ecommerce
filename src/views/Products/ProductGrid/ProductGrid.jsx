@@ -32,7 +32,7 @@ const ProductGrid = () => {
   const paginatedItems = products.slice(startIdx, startIdx + itemsPerPage);
 
 
-  
+
   const getPagination = (total, current, delta = 1) => {
     const range = [];
     const left = Math.max(2, current - delta);

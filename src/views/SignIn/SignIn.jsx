@@ -37,8 +37,22 @@ const SignIn = () => {
 
       if (response.ok) {
         setMessage(data.message);
+        
+        // Store auth token and user data
         localStorage.setItem("authToken", data.token);
-        localStorage.setItem("user", JSON.stringify(data.user));
+        
+        // Make sure we have the user's name for display in navbar
+        const userData = {
+          ...data.user,
+          // If first_name is not provided in the response, use username as fallback
+          first_name: data.user.first_name || data.user.username
+        };
+        
+        localStorage.setItem("user", JSON.stringify(userData));
+        
+        // Dispatch a custom event to notify other components about login
+        window.dispatchEvent(new Event('auth-change'));
+        
         setTimeout(() => navigate("/"), 1500);
       } else {
         setMessage(data.message || "Sign In failed!");
@@ -57,8 +71,21 @@ const SignIn = () => {
       const result = await signInWithPopup(auth, googleProvider);
       const user = result.user;
 
+      // Create a user object with consistent structure
+      const userData = {
+        id: user.uid,
+        username: user.displayName || user.email.split('@')[0],
+        email: user.email,
+        first_name: user.displayName ? user.displayName.split(' ')[0] : '',
+        last_name: user.displayName ? user.displayName.split(' ').slice(1).join(' ') : '',
+        profilePicture: user.photoURL
+      };
+
       localStorage.setItem("authToken", user.accessToken);
-      localStorage.setItem("user", JSON.stringify(user));
+      localStorage.setItem("user", JSON.stringify(userData));
+      
+      // Dispatch a custom event to notify other components about login
+      window.dispatchEvent(new Event('auth-change'));
 
       setMessage("Google Sign-In Successful!");
       navigate("/");

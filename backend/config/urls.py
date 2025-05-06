@@ -19,15 +19,27 @@ from django.urls import path, include
 from orders import views as orders_views
 from django.views.decorators.csrf import ensure_csrf_cookie
 from django.http import HttpResponse
+from rest_framework import routers
+from products.views import ProductViewSet
+
+#Router and registration for viewsets
+router =routers.DefaultRouter()
+router.register(r'products', ProductViewSet)
 
 @ensure_csrf_cookie
 def get_csrf_token(request):
     return HttpResponse("CSRF cookie set")
 
+
 urlpatterns = [
-    path('admin/', admin.site.urls),
-    path('', include('accounts.urls')),
-    path("api/create-order/", orders_views.create_order, name="create_order"),  # Order creation endpoint
+    # API URLs should come before the catch-all patterns
+    path('api/', include(router.urls)),
+    path("api/create-order/", orders_views.create_order, name="create_order"),
     path('api/get-csrf-token/', get_csrf_token, name='get_csrf_token'),
     
+    # Admin and other URLs
+    path('admin/', admin.site.urls),
+
+    # This should be the LAST pattern as it might be catching all requests
+    path('', include('accounts.urls')),
 ]

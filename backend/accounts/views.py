@@ -1,18 +1,23 @@
-from django.contrib.auth import authenticate, login
-from django.shortcuts import render
-from rest_framework.decorators import api_view, permission_classes
-from rest_framework.response import Response
-from rest_framework import status
-from .models import Customer
-from rest_framework.permissions import AllowAny
-from django.views.decorators.csrf import csrf_exempt
-from django.contrib.auth.hashers import make_password
-from django.core.mail import send_mail
-from django.conf import settings
 import random
 import string
-from django.utils import timezone
 from datetime import timedelta
+
+from django.conf import settings
+from django.contrib.auth import authenticate, login
+from django.contrib.auth.hashers import make_password
+from django.core.mail import send_mail
+from django.shortcuts import render
+from django.template.loader import render_to_string
+from django.utils import timezone
+from django.utils.html import strip_tags
+from django.views.decorators.csrf import csrf_exempt
+
+from rest_framework import status
+from rest_framework.decorators import api_view, permission_classes
+from rest_framework.permissions import AllowAny
+from rest_framework.response import Response
+
+from .models import Customer
 
 # Serve React frontend
 def index(request):
@@ -50,16 +55,16 @@ def signup(request):
             email=email,
             password=password,
         )
-        
+
         # Save first name and last name if provided
         if first_name:
             customer.first_name = first_name
         if last_name:
             customer.last_name = last_name
-            
+
         # Save firebase UID if needed
         # customer.firebase_uid = firebase_uid  # Uncomment if you have this field in your model
-        
+
         customer.save()
 
         return Response({
@@ -120,24 +125,24 @@ from django.utils.html import strip_tags
 @csrf_exempt
 def request_password_reset(request):
     email = request.data.get('email')
-    
+
     if not email:
         return Response({
             'message': 'Email is required',
             'success': False
         }, status=status.HTTP_400_BAD_REQUEST)
-    
+
     try:
         user = Customer.objects.get(email=email)
-        
+
         # Generate a 6-digit verification code
         verification_code = ''.join(random.choices(string.digits, k=6))
-        
+
         # Store the verification code in the user model
         user.verification_code = verification_code
         user.verification_code_timestamp = timezone.now()
         user.save()
-        
+
         # Prepare email content
         html_message = render_to_string('email/password_reset.html', {
             'verification_code': verification_code
@@ -148,7 +153,7 @@ def request_password_reset(request):
         subject = 'EGIE GameShop - Password Reset Verification Code'
         from_email = settings.DEFAULT_FROM_EMAIL
         recipient_list = [email]
-        
+
         try:
             send_mail(
                 subject,
@@ -167,7 +172,7 @@ def request_password_reset(request):
                 'message': f'Error sending email: {str(e)}',
                 'success': False
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-            
+
     except Customer.DoesNotExist:
         # For security reasons, don't reveal that the user doesn't exist
         return Response({
@@ -188,23 +193,23 @@ def verify_and_reset_password(request):
     email = request.data.get('email')
     verification_code = request.data.get('verification_code')
     new_password = request.data.get('new_password')
-    
+
     if not all([email, verification_code, new_password]):
         return Response({
             'message': 'Email, verification code, and new password are required',
             'success': False
         }, status=status.HTTP_400_BAD_REQUEST)
-    
+
     try:
         user = Customer.objects.get(email=email)
-        
+
         # Check if verification code exists and is valid
         if not user.verification_code or user.verification_code != verification_code:
             return Response({
                 'message': 'Invalid verification code',
                 'success': False
             }, status=status.HTTP_400_BAD_REQUEST)
-        
+
         # Check if code is expired (10 minutes)
         if not user.verification_code_timestamp or \
            timezone.now() > user.verification_code_timestamp + timedelta(minutes=10):
@@ -212,15 +217,15 @@ def verify_and_reset_password(request):
                 'message': 'Verification code has expired',
                 'success': False
             }, status=status.HTTP_400_BAD_REQUEST)
-        
+
         # Reset password
         user.set_password(new_password)
-        
+
         # Clear verification code
         user.verification_code = None
         user.verification_code_timestamp = None
         user.save()
-        
+
         return Response({
             'message': 'Password updated successfully',
             'success': True
