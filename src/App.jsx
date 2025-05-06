@@ -13,6 +13,9 @@ import ThankYou from './views/Checkout/Thankyou';
 import VerifyEmail from "./views/VerifyEmail/VerifyEmail";
 import ForgotPassword from "./views/ForgotPassword/ForgotPassword";
 import ResetPassword from "./views/ResetPassword/ResetPassword";
+import ProfileSettings from './views/Profile/ProfileSettings';
+import Settings from './views/Settings/Settings';
+
 
 
 
@@ -52,6 +55,9 @@ const Main = () => {
         <Route path="/forgot-password" element={<ForgotPassword />} />
         <Route path="/reset-password" element={<ResetPassword />} />
         <Route path="/verify-email" element={<VerifyEmail />} />
+        <Route path="/profile/settings" element={<ProfileSettings />} />
+        <Route path="/settings" element={<Settings />} />
+
 
 
 

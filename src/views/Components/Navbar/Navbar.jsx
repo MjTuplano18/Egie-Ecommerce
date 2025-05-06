@@ -125,7 +125,7 @@ const Navbar = ({isAuth}) => {
   // Get user's display name
   const getUserDisplayName = () => {
     if (!userData) return "User";
-    
+
     if (userData.first_name && userData.last_name) {
       return `${userData.first_name} ${userData.last_name}`;
     } else if (userData.first_name) {
@@ -413,7 +413,7 @@ const Navbar = ({isAuth}) => {
                     <ul className="py-2" aria-labelledby="user-menu-button">
                       <li>
                         <Link
-                          to="/profile"
+                          to="/profile/settings"
                           className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 dark:hover:bg-gray-600 dark:text-gray-200 dark:hover:text-white"
                         >
                           Profile
