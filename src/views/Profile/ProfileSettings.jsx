@@ -14,7 +14,7 @@ const ProfileSettings = () => {
     phoneNumber: '',
     profilePicture: null
   });
-  
+
   const [isLoading, setIsLoading] = useState(false);
   const [isSaved, setIsSaved] = useState(false);
   const [selectedFile, setSelectedFile] = useState(null);
@@ -24,7 +24,13 @@ const ProfileSettings = () => {
     const storedUserData = JSON.parse(localStorage.getItem('user')) || {};
     setUserData(prevData => ({
       ...prevData,
-      ...storedUserData
+      firstName: storedUserData.first_name || storedUserData.firstName || '',
+      lastName: storedUserData.last_name || storedUserData.lastName || '',
+      email: storedUserData.email || '',
+      birthDate: storedUserData.birth_date || storedUserData.birthDate || '',
+      address: storedUserData.address || '',
+      phoneNumber: storedUserData.phone_number || storedUserData.phoneNumber || '',
+      profilePicture: storedUserData.profile_picture || storedUserData.profilePicture || null
     }));
   }, []);
 
@@ -56,11 +62,11 @@ const ProfileSettings = () => {
 
   const uploadProfilePicture = async (userId) => {
     if (!selectedFile) return null;
-    
+
     try {
       const formData = new FormData();
       formData.append('profile_picture', selectedFile);
-      
+
       const response = await userService.uploadProfilePicture(userId, formData);
       return response.profile_picture_url;
     } catch (error) {
@@ -72,47 +78,42 @@ const ProfileSettings = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setIsLoading(true);
-    
+
     try {
-      // Get user ID from localStorage
       const user = JSON.parse(localStorage.getItem('user'));
       const userId = user?.id;
 
-      
       if (!userId) {
         toast.error('User ID not found. Please log in again.');
         setIsLoading(false);
         return;
       }
-      
-      // Upload profile picture if a new one was selected
-    // Create FormData for profile picture upload
-    let profilePictureUrl = userData.profilePicture;
-    if (selectedFile) {
-      const formData = new FormData();
-      formData.append('profile_picture', selectedFile);
 
-      try {
-        const response = await fetch(`http://localhost:8000/api/users/${userId}/upload-profile-picture/`, {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${localStorage.getItem('authToken')}`
-          },
-          body: formData
-        });
+      let profilePictureUrl = userData.profilePicture;
+      if (selectedFile) {
+        const formData = new FormData();
+        formData.append('profile_picture', selectedFile);
 
-        if (response.ok) {
-          const data = await response.json();
-          profilePictureUrl = data.profile_picture_url;
-        } else {
-          console.error('Failed to upload profile picture');
+        try {
+          const response = await fetch(`http://localhost:8000/api/users/${userId}/upload-profile-picture/`, {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${localStorage.getItem('accessToken')}`
+            },
+            body: formData
+          });
+
+          if (response.ok) {
+            const data = await response.json();
+            profilePictureUrl = data.profile_picture_url;
+          } else {
+            console.error('Failed to upload profile picture');
+          }
+        } catch (error) {
+          console.error('Error uploading profile picture:', error);
         }
-      } catch (error) {
-        console.error('Error uploading profile picture:', error);
       }
-    }
-      
-      // Prepare data for API
+
       const updatedUserData = {
         first_name: userData.firstName,
         last_name: userData.lastName,
@@ -122,37 +123,40 @@ const ProfileSettings = () => {
         phone_number: userData.phoneNumber,
         profile_picture: profilePictureUrl
       };
-       // Make direct fetch call to update profile
-      const response = await fetch(`http://localhost:8000/api/users/${userId}/`, {
-      method: 'PUT',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${localStorage.getItem('authToken')}`
-      },
-      body: JSON.stringify(updatedUserData)
-    });
 
-    if (!response.ok) {
-      const errorData = await response.json();
-      throw new Error(errorData.message || 'Failed to update profile');
-    }
+      const response = await fetch('http://localhost:8000/api/update-profile/', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('accessToken')}`
+        },
+        body: JSON.stringify(updatedUserData)
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to update profile');
+      }
+
+      const responseData = await response.json();
       
-      // Update user profile in database
-      await userService.updateProfile(userId, updatedUserData);
-      
-      // Update localStorage with new data
+      // Update localStorage with consistent field names
       const userToStore = {
-        ...userData,
-        ...updatedUserData,
+        ...user,
+        ...responseData.user,
         id: userId,
+        first_name: responseData.user.first_name || userData.firstName,
+        last_name: responseData.user.last_name || userData.lastName,
+        birth_date: responseData.user.birth_date || userData.birthDate,
+        phone_number: responseData.user.phone_number || userData.phoneNumber,
+        // Store both versions of the profile picture URL for compatibility
+        profile_picture: profilePictureUrl,
         profilePicture: profilePictureUrl
       };
-      
+
       localStorage.setItem('user', JSON.stringify(userToStore));
-      
-      // Dispatch auth change event to update navbar
       window.dispatchEvent(new Event('auth-change'));
-      
+
       setIsSaved(true);
       setSelectedFile(null);
       toast.success('Profile updated successfully!');
@@ -176,7 +180,7 @@ const ProfileSettings = () => {
       </Link>
 
       <h2 className="text-3xl font-bold mb-8 text-center text-gray-800">Profile Settings</h2>
-      
+
       <form onSubmit={handleSubmit}>
         {/* Profile Picture Section */}
         <div className="mb-8 text-center">
@@ -209,7 +213,7 @@ const ProfileSettings = () => {
           <h3 className="text-xl font-semibold mb-4 text-gray-700 flex items-center">
             <span>Personal Information</span>
           </h3>
-          
+
           {/* Name Fields */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
             <div>
@@ -237,7 +241,7 @@ const ProfileSettings = () => {
               />
             </div>
           </div>
-          
+
           {/* Email Field - Read Only */}
           <div className="mb-4">
             <label htmlFor="email" className="block mb-2 text-sm font-medium text-gray-700">Email Address</label>
@@ -251,7 +255,7 @@ const ProfileSettings = () => {
             />
             <p className="text-xs text-gray-500 mt-1">Email cannot be changed</p>
           </div>
-          
+
           {/* Phone Number */}
           <div className="mb-4">
             <label htmlFor="phoneNumber" className="block mb-2 text-sm font-medium text-gray-700">Phone Number</label>
@@ -265,7 +269,7 @@ const ProfileSettings = () => {
               placeholder="Enter your phone number"
             />
           </div>
-          
+
           {/* Birth Date */}
           <div className="mb-4">
             <label htmlFor="birthDate" className="block mb-2 text-sm font-medium text-gray-700">Birth Date</label>
@@ -278,7 +282,7 @@ const ProfileSettings = () => {
               className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
           </div>
-          
+
           {/* Address */}
           <div className="mb-4">
             <label htmlFor="address" className="block mb-2 text-sm font-medium text-gray-700">Address</label>
@@ -293,7 +297,7 @@ const ProfileSettings = () => {
             ></textarea>
           </div>
         </div>
-        
+
         {/* Save and Cancel Buttons */}
         <div className="flex justify-end space-x-4">
           <Link

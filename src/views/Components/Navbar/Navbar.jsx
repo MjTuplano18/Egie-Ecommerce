@@ -62,11 +62,16 @@ const Navbar = ({isAuth}) => {
   useEffect(() => {
     const checkAuthStatus = () => {
       const userDataString = localStorage.getItem('user');
-      const token = localStorage.getItem('authToken');
+      const accessToken = localStorage.getItem('accessToken');
+      const refreshToken = localStorage.getItem('refreshToken');
 
-      if (userDataString && token) {
+      if (userDataString && accessToken && refreshToken) {
         try {
           const userData = JSON.parse(userDataString);
+          // Handle both profile_picture and profilePicture properties
+          if (userData.profile_picture && !userData.profilePicture) {
+            userData.profilePicture = userData.profile_picture;
+          }
           setUserData(userData);
           setIsSignedIn(true);
         } catch (error) {
@@ -87,7 +92,7 @@ const Navbar = ({isAuth}) => {
 
     // Add event listener for storage changes (for multi-tab support)
     window.addEventListener('storage', (event) => {
-      if (event.key === 'authToken' || event.key === 'user') {
+      if (event.key === 'accessToken' || event.key === 'refreshToken' || event.key === 'user') {
         checkAuthStatus();
       }
     });
@@ -101,7 +106,8 @@ const Navbar = ({isAuth}) => {
 
   const handleSignOut = () => {
     // Clear user session data and tokens
-    localStorage.removeItem('authToken');
+    localStorage.removeItem('accessToken');
+    localStorage.removeItem('refreshToken');
     localStorage.removeItem('user');
 
     setIsSignedIn(false);

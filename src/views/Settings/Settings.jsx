@@ -90,37 +90,39 @@ const Settings = () => {
     setIsPasswordLoading(true);
 
     try {
-      const user = auth.currentUser;
-      if (!user) {
-        toast.error('You must be logged in to change your password');
-        setIsPasswordLoading(false);
-        return;
-      }
-
-      // Re-authenticate user before changing password
-      const credential = EmailAuthProvider.credential(
-        user.email,
-        passwordData.currentPassword
-      );
-
-      await reauthenticateWithCredential(user, credential);
-      await updatePassword(user, passwordData.newPassword);
-
-      // Clear password fields
-      setPasswordData({
-        currentPassword: '',
-        newPassword: '',
-        confirmPassword: ''
+      const response = await fetch('http://localhost:8000/api/change-password/', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('accessToken')}`
+        },
+        body: JSON.stringify({
+          current_password: passwordData.currentPassword,
+          new_password: passwordData.newPassword
+        })
       });
 
-      toast.success('Password updated successfully!');
+      const data = await response.json();
+
+      if (response.ok) {
+        const { tokens } = data;
+        // Update tokens in localStorage
+        localStorage.setItem('accessToken', tokens.access);
+        localStorage.setItem('refreshToken', tokens.refresh);
+
+        // Clear password fields
+        setPasswordData({
+          currentPassword: '',
+          newPassword: '',
+          confirmPassword: ''
+        });
+        toast.success('Password updated successfully!');
+      } else {
+        toast.error(data.message || 'Failed to update password');
+      }
     } catch (error) {
       console.error('Error updating password:', error);
-      if (error.code === 'auth/wrong-password') {
-        toast.error('Current password is incorrect');
-      } else {
-        toast.error('Failed to update password. Please try again.');
-      }
+      toast.error('Failed to update password. Please try again.');
     } finally {
       setIsPasswordLoading(false);
     }
@@ -337,7 +339,7 @@ const Settings = () => {
                     name="currentPassword"
                     value={passwordData.currentPassword}
                     onChange={handlePasswordChange}
-                    className="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5"
+                    className="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 pr-10"
                     placeholder="••••••••"
                   />
                   <button
@@ -345,7 +347,7 @@ const Settings = () => {
                     className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500"
                     onClick={() => setShowCurrentPassword(!showCurrentPassword)}
                   >
-                    {showCurrentPassword ? <FaEyeSlash /> : <FaEye />}
+                    {showCurrentPassword ? <FaEyeSlash className="w-5 h-5" /> : <FaEye className="w-5 h-5" />}
                   </button>
                 </div>
               </div>
@@ -358,7 +360,7 @@ const Settings = () => {
                     name="newPassword"
                     value={passwordData.newPassword}
                     onChange={handlePasswordChange}
-                    className="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5"
+                    className="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 pr-10"
                     placeholder="••••••••"
                   />
                   <button
@@ -366,7 +368,7 @@ const Settings = () => {
                     className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500"
                     onClick={() => setShowNewPassword(!showNewPassword)}
                   >
-                    {showNewPassword ? <FaEyeSlash /> : <FaEye />}
+                    {showNewPassword ? <FaEyeSlash className="w-5 h-5" /> : <FaEye className="w-5 h-5" />}
                   </button>
                 </div>
                 <p className="text-xs text-gray-500 mt-1">Password must be at least 6 characters long</p>
@@ -380,7 +382,7 @@ const Settings = () => {
                     name="confirmPassword"
                     value={passwordData.confirmPassword}
                     onChange={handlePasswordChange}
-                    className="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5"
+                    className="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 pr-10"
                     placeholder="••••••••"
                   />
                   <button
@@ -388,7 +390,7 @@ const Settings = () => {
                     className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500"
                     onClick={() => setShowConfirmPassword(!showConfirmPassword)}
                   >
-                    {showConfirmPassword ? <FaEyeSlash /> : <FaEye />}
+                    {showConfirmPassword ? <FaEyeSlash className="w-5 h-5" /> : <FaEye className="w-5 h-5" />}
                   </button>
                 </div>
               </div>

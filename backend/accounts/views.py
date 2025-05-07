@@ -106,7 +106,8 @@ def signin(request):
             # Generate tokens
             refresh = RefreshToken.for_user(user)
             
-            return Response({
+            # Create response data
+            response_data = {
                 'message': 'Login successful!',
                 'tokens': {
                     'refresh': str(refresh),
@@ -120,9 +121,16 @@ def signin(request):
                     'last_name': user.last_name,
                     'phone_number': user.phone_number,
                     'birth_date': user.birth_date,
-                    'profile_picture': user.profile_picture.url if user.profile_picture else None
                 }
-            }, status=status.HTTP_200_OK)
+            }
+
+            # Add profile picture URL if it exists
+            if user.profile_picture:
+                response_data['user']['profile_picture'] = request.build_absolute_uri(settings.MEDIA_URL + user.profile_picture)
+            else:
+                response_data['user']['profile_picture'] = None
+
+            return Response(response_data, status=status.HTTP_200_OK)
         else:
             return Response({'message': 'Invalid password!'}, status=status.HTTP_401_UNAUTHORIZED)
 

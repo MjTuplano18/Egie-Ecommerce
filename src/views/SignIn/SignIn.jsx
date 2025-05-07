@@ -38,19 +38,24 @@ const SignIn = () => {
       if (response.ok) {
         setMessage(data.message);
         
-        // Store auth token and user data
-        localStorage.setItem("authToken", data.token);
+        // Store JWT tokens
+        localStorage.setItem("accessToken", data.tokens.access);
+        localStorage.setItem("refreshToken", data.tokens.refresh);
 
-        // Make sure we have the user's name for display in navbar
+        // Store user data with consistent profile picture handling
         const userData = {
           ...data.user,
-          // If first_name is not provided in the response, use username as fallback
-          first_name: data.user.first_name || data.user.username
+          // Store both versions of the profile picture URL for compatibility
+          profile_picture: data.user.profile_picture,
+          profilePicture: data.user.profile_picture,
+          // Handle first/last name consistency
+          first_name: data.user.first_name || data.user.username,
+          firstName: data.user.first_name || data.user.username,
+          last_name: data.user.last_name || '',
+          lastName: data.user.last_name || ''
         };
         
         localStorage.setItem("user", JSON.stringify(userData));
-        
-        // Dispatch a custom event to notify other components about login
         window.dispatchEvent(new Event('auth-change'));
 
         setTimeout(() => navigate("/"), 1500);
