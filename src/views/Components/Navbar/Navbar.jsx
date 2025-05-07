@@ -126,10 +126,12 @@ const Navbar = ({isAuth}) => {
   const getUserDisplayName = () => {
     if (!userData) return "User";
 
-    if (userData.first_name && userData.last_name) {
+    if (userData.firstName && userData.lastName) {
+      return `${userData.firstName} ${userData.lastName}`;
+    } else if (userData.first_name && userData.last_name) {
       return `${userData.first_name} ${userData.last_name}`;
-    } else if (userData.first_name) {
-      return userData.first_name;
+    } else if (userData.firstName || userData.first_name) {
+      return userData.firstName || userData.first_name;
     } else if (userData.username) {
       return userData.username;
     } else {
@@ -376,7 +378,7 @@ const Navbar = ({isAuth}) => {
                   {isSignedIn && (
                     <button
                       type="button"
-                      className="flex text-sm bg-gray-800 rounded-full md:me-0 focus:ring-4 focus:ring-gray-300 dark:focus:ring-gray-600"
+                      className="flex text-sm rounded-full md:me-0 focus:ring-4 focus:ring-gray-300 dark:focus:ring-gray-600"
                       id="user-menu-button"
                       aria-expanded="false"
                       data-dropdown-toggle="user-dropdown"
@@ -385,13 +387,13 @@ const Navbar = ({isAuth}) => {
                       <span className="sr-only">Open user menu</span>
                       {userData && userData.profilePicture ? (
                         <img
-                          className="w-8 h-8 rounded-full"
+                          className="w-10 h-10 rounded-full object-cover border-2 border-blue-500"
                           src={userData.profilePicture}
                           alt="user photo"
                         />
                       ) : (
-                        <div className="w-8 h-8 rounded-full bg-gray-600 flex items-center justify-center text-white">
-                          <FaUser />
+                        <div className="w-10 h-10 rounded-full bg-gradient-to-br from-teal-300 to-lime-300 flex items-center justify-center text-white">
+                          <FaUser className="text-lg" />
                         </div>
                       )}
                     </button>
@@ -403,12 +405,27 @@ const Navbar = ({isAuth}) => {
                     id="user-dropdown"
                   >
                     <div className="px-4 py-3">
-                      <span className="block text-sm text-gray-900 dark:text-white">
-                        {getUserDisplayName()}
-                      </span>
-                      <span className="block text-sm text-gray-500 truncate dark:text-gray-400">
-                        {userData?.email || "user@example.com"}
-                      </span>
+                      <div className="flex items-center mb-2">
+                        {userData && userData.profilePicture ? (
+                          <img
+                            className="w-12 h-12 rounded-full object-cover mr-3 border-2 border-blue-500"
+                            src={userData.profilePicture}
+                            alt="user photo"
+                          />
+                        ) : (
+                          <div className="w-12 h-12 rounded-full bg-gradient-to-br from-teal-300 to-lime-300 flex items-center justify-center text-white mr-3">
+                            <FaUser className="text-xl" />
+                          </div>
+                        )}
+                        <div>
+                          <span className="block text-sm font-medium text-gray-900 dark:text-white">
+                            {getUserDisplayName()}
+                          </span>
+                          <span className="block text-sm text-gray-500 truncate dark:text-gray-400">
+                            {userData?.email || "user@example.com"}
+                          </span>
+                        </div>
+                      </div>
                     </div>
                     <ul className="py-2" aria-labelledby="user-menu-button">
                       <li>

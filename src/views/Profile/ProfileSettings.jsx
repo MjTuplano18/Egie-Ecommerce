@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { FaUser, FaCheck, FaArrowLeft } from 'react-icons/fa';
+import { FaUser, FaCheck, FaArrowLeft, FaCamera } from 'react-icons/fa';
 import { toast } from 'sonner';
 import { Link } from 'react-router-dom';
+import { userService } from '../../services/api';
 
 const ProfileSettings = () => {
   const [userData, setUserData] = useState({
@@ -16,6 +17,7 @@ const ProfileSettings = () => {
   
   const [isLoading, setIsLoading] = useState(false);
   const [isSaved, setIsSaved] = useState(false);
+  const [selectedFile, setSelectedFile] = useState(null);
 
   useEffect(() => {
     // Fetch user data from localStorage or API
@@ -38,15 +40,32 @@ const ProfileSettings = () => {
   const handleImageChange = (e) => {
     const file = e.target.files[0];
     if (file) {
+      // Show preview immediately
       const reader = new FileReader();
       reader.onloadend = () => {
         setUserData(prevData => ({
           ...prevData,
           profilePicture: reader.result
         }));
+        setSelectedFile(file);
         setIsSaved(false);
       };
       reader.readAsDataURL(file);
+    }
+  };
+
+  const uploadProfilePicture = async (userId) => {
+    if (!selectedFile) return null;
+    
+    try {
+      const formData = new FormData();
+      formData.append('profile_picture', selectedFile);
+      
+      const response = await userService.uploadProfilePicture(userId, formData);
+      return response.profile_picture_url;
+    } catch (error) {
+      console.error('Error uploading profile picture:', error);
+      throw error;
     }
   };
 
@@ -55,14 +74,87 @@ const ProfileSettings = () => {
     setIsLoading(true);
     
     try {
-      // Here you would typically send the updated data to your backend
-      // For now, we'll just update localStorage
-      localStorage.setItem('user', JSON.stringify(userData));
+      // Get user ID from localStorage
+      const user = JSON.parse(localStorage.getItem('user'));
+      const userId = user?.id;
+
       
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 800));
+      if (!userId) {
+        toast.error('User ID not found. Please log in again.');
+        setIsLoading(false);
+        return;
+      }
+      
+      // Upload profile picture if a new one was selected
+    // Create FormData for profile picture upload
+    let profilePictureUrl = userData.profilePicture;
+    if (selectedFile) {
+      const formData = new FormData();
+      formData.append('profile_picture', selectedFile);
+
+      try {
+        const response = await fetch(`http://localhost:8000/api/users/${userId}/upload-profile-picture/`, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${localStorage.getItem('authToken')}`
+          },
+          body: formData
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          profilePictureUrl = data.profile_picture_url;
+        } else {
+          console.error('Failed to upload profile picture');
+        }
+      } catch (error) {
+        console.error('Error uploading profile picture:', error);
+      }
+    }
+      
+      // Prepare data for API
+      const updatedUserData = {
+        first_name: userData.firstName,
+        last_name: userData.lastName,
+        email: userData.email,
+        birth_date: userData.birthDate,
+        address: userData.address,
+        phone_number: userData.phoneNumber,
+        profile_picture: profilePictureUrl
+      };
+       // Make direct fetch call to update profile
+      const response = await fetch(`http://localhost:8000/api/users/${userId}/`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${localStorage.getItem('authToken')}`
+      },
+      body: JSON.stringify(updatedUserData)
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.message || 'Failed to update profile');
+    }
+      
+      // Update user profile in database
+      await userService.updateProfile(userId, updatedUserData);
+      
+      // Update localStorage with new data
+      const userToStore = {
+        ...userData,
+        ...updatedUserData,
+        id: userId,
+        profilePicture: profilePictureUrl
+      };
+      
+      localStorage.setItem('user', JSON.stringify(userToStore));
+      
+      // Dispatch auth change event to update navbar
+      window.dispatchEvent(new Event('auth-change'));
       
       setIsSaved(true);
+      setSelectedFile(null);
       toast.success('Profile updated successfully!');
     } catch (error) {
       console.error('Error updating profile:', error);
@@ -73,7 +165,7 @@ const ProfileSettings = () => {
   };
 
   return (
-    <div className="max-w-4xl mx-auto mt-10 p-6 bg-white rounded-lg shadow-md relative">
+    <div className="max-w-4xl mx-auto mt-10 p-6 bg-white rounded-lg shadow-md relative mb-10">
       {/* Back/Exit Button */}
       <Link
         to="/"
@@ -88,12 +180,17 @@ const ProfileSettings = () => {
       <form onSubmit={handleSubmit}>
         {/* Profile Picture Section */}
         <div className="mb-8 text-center">
-          <div className="w-32 h-32 mx-auto mb-4 rounded-full overflow-hidden bg-gray-200 flex items-center justify-center border-4 border-gray-300">
+          <div className="w-32 h-32 mx-auto mb-4 rounded-full overflow-hidden bg-gray-200 flex items-center justify-center border-4 border-gray-300 relative group">
             {userData.profilePicture ? (
               <img src={userData.profilePicture} alt="Profile" className="w-full h-full object-cover" />
             ) : (
               <FaUser className="text-gray-400 text-5xl" />
             )}
+            <div className="absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+              <label htmlFor="profilePicture" className="cursor-pointer text-white">
+                <FaCamera className="text-2xl" />
+              </label>
+            </div>
           </div>
           <label htmlFor="profilePicture" className="cursor-pointer inline-block bg-blue-500 text-white px-4 py-2 rounded-md hover:bg-blue-600 transition duration-300">
             Change Profile Picture
