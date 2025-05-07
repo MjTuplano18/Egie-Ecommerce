@@ -11,7 +11,7 @@ urlpatterns = [
     # Password reset endpoints
     path('api/request-password-reset/', views.request_password_reset, name='request_password_reset'),
     path('api/verify-and-reset-password/', views.verify_and_reset_password, name='verify_and_reset_password'),
-    path('api/reset-password/', views.reset_password, name='reset_password'),  # Direct reset (admin/emergency)
+
 
     # User profile endpoints
     path('api/update-profile/', views.update_profile, name='update_profile'),
