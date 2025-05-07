@@ -79,6 +79,8 @@ def signup(request):
         }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 # --- SIGN IN ---
+from rest_framework_simplejwt.tokens import RefreshToken
+
 @api_view(['POST'])
 @permission_classes([AllowAny])
 @csrf_exempt
@@ -100,14 +102,25 @@ def signin(request):
 
         if user is not None:
             login(request, user)
+            
+            # Generate tokens
+            refresh = RefreshToken.for_user(user)
+            
             return Response({
                 'message': 'Login successful!',
-                'token': 'your-token-generation-logic-here',  # You might want to generate a token
+                'tokens': {
+                    'refresh': str(refresh),
+                    'access': str(refresh.access_token),
+                },
                 'user': {
                     'id': user.id,
                     'username': user.username,
                     'email': user.email,
-                    # Add other user fields as needed
+                    'first_name': user.first_name,
+                    'last_name': user.last_name,
+                    'phone_number': user.phone_number,
+                    'birth_date': user.birth_date,
+                    'profile_picture': user.profile_picture.url if user.profile_picture else None
                 }
             }, status=status.HTTP_200_OK)
         else:
@@ -384,9 +397,16 @@ def change_password(request):
         user.set_password(new_password)
         user.save()
 
+        # Generate new tokens since credentials changed
+        refresh = RefreshToken.for_user(user)
+        
         return Response({
             'message': 'Password changed successfully',
-            'success': True
+            'success': True,
+            'tokens': {
+                'refresh': str(refresh),
+                'access': str(refresh.access_token),
+            }
         }, status=status.HTTP_200_OK)
 
     except Exception as e:
