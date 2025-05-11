@@ -10,7 +10,7 @@ class Customer(AbstractUser):
     created_at = models.DateTimeField(auto_now_add=True)
     verification_code = models.CharField(max_length=10, blank=True, null=True)
     verification_code_timestamp = models.DateTimeField(null=True, blank=True)
-
+    firebase_uid = models.CharField(max_length=128, unique=True, null=True, blank=True)
 
     def __str__(self):
         return self.username
