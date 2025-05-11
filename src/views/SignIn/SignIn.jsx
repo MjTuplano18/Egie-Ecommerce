@@ -38,9 +38,8 @@ const SignIn = () => {
       if (response.ok) {
         setMessage(data.message);
         
-        // Store JWT tokens - using authToken instead of accessToken
-        localStorage.setItem("authToken", data.tokens.access);
-        localStorage.setItem("refreshToken", data.tokens.refresh);
+        // Store auth token and user data
+        localStorage.setItem("authToken", data.token);
 
         // Store user data with consistent profile picture handling
         const userData = {
@@ -56,8 +55,6 @@ const SignIn = () => {
         };
         
         localStorage.setItem("user", JSON.stringify(userData));
-        
-        // Dispatch a custom event to notify other components about login
         window.dispatchEvent(new Event('auth-change'));
 
         setTimeout(() => navigate("/"), 1500);
@@ -84,11 +81,8 @@ const SignIn = () => {
         username: user.displayName || user.email.split('@')[0],
         email: user.email,
         first_name: user.displayName ? user.displayName.split(' ')[0] : '',
-        firstName: user.displayName ? user.displayName.split(' ')[0] : '',
         last_name: user.displayName ? user.displayName.split(' ').slice(1).join(' ') : '',
-        lastName: user.displayName ? user.displayName.split(' ').slice(1).join(' ') : '',
-        profilePicture: user.photoURL,
-        profile_picture: user.photoURL
+        profilePicture: user.photoURL
       };
 
       localStorage.setItem("authToken", user.accessToken);
@@ -97,11 +91,20 @@ const SignIn = () => {
       // Dispatch a custom event to notify other components about login
       window.dispatchEvent(new Event('auth-change'));
 
-      setMessage("Google Sign-In Successful!");
-      navigate("/");
+        setMessage("Google Sign-In Successful!");
+        setTimeout(() => navigate("/"), 1500);
+      } else {
+        // If user doesn't exist, redirect to signup
+        if (data.message.includes("Invalid Credentials")) {
+          setMessage("Account not found. Redirecting to signup...");
+          setTimeout(() => navigate("/auth"), 2000);
+        } else {
+          setMessage(data.message || "Google Sign-In Failed!");
+        }
+      }
     } catch (error) {
       console.error("Google Sign-In Error:", error);
-      setMessage("Google Sign-In Failed!");
+      setMessage("Google Sign-In Failed: " + (error.message || "Unknown error"));
     }
   };
 

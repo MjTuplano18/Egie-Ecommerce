@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { FaUser, FaCheck, FaArrowLeft } from 'react-icons/fa';
+import { FaUser, FaCheck, FaArrowLeft, FaCamera } from 'react-icons/fa';
 import { toast } from 'sonner';
 import { Link } from 'react-router-dom';
+import { userService } from '../../services/api';
 
 const ProfileSettings = () => {
   const [userData, setUserData] = useState({
@@ -23,142 +24,14 @@ const ProfileSettings = () => {
 
   const [isLoading, setIsLoading] = useState(false);
   const [isSaved, setIsSaved] = useState(false);
-  
+
   useEffect(() => {
-    const fetchUserData = async () => {
-      try {
-        const token = localStorage.getItem('accessToken');
-        console.log('Using token:', token); // Debug log
-        
-        if (!token) {
-          console.log('No token found, using localStorage data');
-          const storedUserData = JSON.parse(localStorage.getItem('user')) || {};
-          
-          setUserData(prevData => ({
-            ...prevData,
-            firstName: storedUserData.first_name || storedUserData.firstName || '',
-            lastName: storedUserData.last_name || storedUserData.lastName || '',
-            email: storedUserData.email || '',
-            birthDate: storedUserData.birth_date || storedUserData.birthDate || '',
-            phoneNumber: storedUserData.phone_number || storedUserData.phoneNumber || '',
-            profilePicture: storedUserData.profile_picture || storedUserData.profilePicture || null,
-            address: storedUserData.address || {
-              addressLine: '',
-              city: '',
-              province: '',
-              postalCode: '',
-              country: 'Philippines',
-              addressType: 'shipping'
-            }
-          }));
-          return;
-        }
-        
-        // Fetch profile data
-        const profileResponse = await fetch('http://127.0.0.1:8000/get-profile/', {
-          headers: {
-            'Authorization': `Bearer ${token}`,
-          },
-        });
-        
-        if (profileResponse.ok) {
-          const profileData = await profileResponse.json();
-          console.log('Fetched profile data:', profileData);
-          
-          // Fetch address data
-          const addressResponse = await fetch('http://127.0.0.1:8000/get-address/', {
-            headers: {
-              'Authorization': `Bearer ${token}`,
-            },
-          });
-          
-          let addressData = {
-            addressLine: '',
-            city: '',
-            province: '',
-            postalCode: '',
-            country: 'Philippines',
-            addressType: 'shipping'
-          };
-          
-          if (addressResponse.ok) {
-            const fetchedAddressData = await addressResponse.json();
-            console.log('Fetched address data:', fetchedAddressData);
-            
-            if (fetchedAddressData) {
-              addressData = {
-                addressLine: fetchedAddressData.address_line || '',
-                city: fetchedAddressData.city || '',
-                province: fetchedAddressData.province || '',
-                postalCode: fetchedAddressData.postal_code || '',
-                country: fetchedAddressData.country || 'Philippines',
-                addressType: fetchedAddressData.address_type || 'shipping'
-              };
-            }
-          }
-          
-          setUserData({
-            firstName: profileData.first_name || '',
-            lastName: profileData.last_name || '',
-            email: profileData.email || '',
-            birthDate: profileData.birth_date || '',
-            phoneNumber: profileData.phone_number || '',
-            profilePicture: profileData.profile_picture || null,
-            address: addressData
-          });
-          
-          // Update localStorage
-          localStorage.setItem('user', JSON.stringify({
-            ...profileData,
-            address: addressData
-          }));
-        } else {
-          console.error('Failed to fetch profile data');
-          // Fall back to localStorage
-          const storedUserData = JSON.parse(localStorage.getItem('user')) || {};
-          setUserData(prevData => ({
-            ...prevData,
-            firstName: storedUserData.first_name || storedUserData.firstName || '',
-            lastName: storedUserData.last_name || storedUserData.lastName || '',
-            email: storedUserData.email || '',
-            birthDate: storedUserData.birth_date || storedUserData.birthDate || '',
-            phoneNumber: storedUserData.phone_number || storedUserData.phoneNumber || '',
-            profilePicture: storedUserData.profile_picture || storedUserData.profilePicture || null,
-            address: storedUserData.address || {
-              addressLine: '',
-              city: '',
-              province: '',
-              postalCode: '',
-              country: 'Philippines',
-              addressType: 'shipping'
-            }
-          }));
-        }
-      } catch (error) {
-        console.error('Error fetching user data:', error);
-        // Fall back to localStorage
-        const storedUserData = JSON.parse(localStorage.getItem('user')) || {};
-        setUserData(prevData => ({
-          ...prevData,
-          firstName: storedUserData.first_name || storedUserData.firstName || '',
-          lastName: storedUserData.last_name || storedUserData.lastName || '',
-          email: storedUserData.email || '',
-          birthDate: storedUserData.birth_date || storedUserData.birthDate || '',
-          phoneNumber: storedUserData.phone_number || storedUserData.phoneNumber || '',
-          profilePicture: storedUserData.profile_picture || storedUserData.profilePicture || null,
-          address: storedUserData.address || {
-            addressLine: '',
-            city: '',
-            province: '',
-            postalCode: '',
-            country: 'Philippines',
-            addressType: 'shipping'
-          }
-        }));
-      }
-    };
-    
-    fetchUserData();
+    // Fetch user data from localStorage or API
+    const storedUserData = JSON.parse(localStorage.getItem('user')) || {};
+    setUserData(prevData => ({
+      ...prevData,
+      ...storedUserData
+    }));
   }, []);
 
   const handleInputChange = (e) => {
@@ -188,164 +61,49 @@ const ProfileSettings = () => {
   const handleImageChange = (e) => {
     const file = e.target.files[0];
     if (file) {
+      // Show preview immediately
       const reader = new FileReader();
       reader.onloadend = () => {
         setUserData(prevData => ({
           ...prevData,
           profilePicture: file // Store the file object for upload
         }));
+        setSelectedFile(file);
         setIsSaved(false);
       };
       reader.readAsDataURL(file);
     }
   };
 
+  const uploadProfilePicture = async (userId) => {
+    if (!selectedFile) return null;
+
+    try {
+      const formData = new FormData();
+      formData.append('profile_picture', selectedFile);
+
+      const response = await userService.uploadProfilePicture(userId, formData);
+      return response.profile_picture_url;
+    } catch (error) {
+      console.error('Error uploading profile picture:', error);
+      throw error;
+    }
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setIsLoading(true);
-    
-    try {
-      // Get the access token
-      const token = localStorage.getItem('accessToken');
-      
-      if (!token) {
-        toast.error('You must be logged in to update your profile');
-        setIsLoading(false);
-        return;
-      }
-      
-      console.log('Updating profile with token:', token);
-      
-      // Get user ID from localStorage
-      const user = JSON.parse(localStorage.getItem('user'));
-      const userId = user?.id || user?.user_id || user?.pk;
-      
-      if (!userId) {
-        console.log('User data from localStorage:', user);
-        toast.error('User ID not found. Please log in again.');
-        setIsLoading(false);
-        return;
-      }
-      
-      console.log('Updating profile for user ID:', userId);
-      
-      // Create FormData for profile update (including profile picture)
-      const formData = new FormData();
-      formData.append('first_name', userData.firstName);
-      formData.append('last_name', userData.lastName);
-      formData.append('phone_number', userData.phoneNumber);
-      formData.append('birth_date', userData.birthDate);
-      
-      // Add profile picture if it's a File object
-      if (userData.profilePicture instanceof File) {
-        formData.append('profile_picture', userData.profilePicture);
-      }
-      
-      // Add address data
-      formData.append('address_line', userData.address.addressLine);
-      formData.append('city', userData.address.city);
-      formData.append('province', userData.address.province);
-      formData.append('postal_code', userData.address.postalCode);
-      formData.append('country', userData.address.country);
-      formData.append('address_type', userData.address.addressType || 'shipping');
-      
-      // First, make a GET request to the Django site to get the CSRF cookie
-      await fetch('http://127.0.0.1:8000/', {
-        method: 'GET',
-        credentials: 'include',
-      });
-      
-      // Get CSRF token from cookies
-      const getCsrfToken = () => {
-        const name = 'csrftoken=';
-        const decodedCookie = decodeURIComponent(document.cookie);
-        const cookieArray = decodedCookie.split(';');
-        
-        for (let i = 0; i < cookieArray.length; i++) {
-          let cookie = cookieArray[i].trim();
-          if (cookie.indexOf(name) === 0) {
-            return cookie.substring(name.length, cookie.length);
-          }
-        }
-        return '';
-      };
-      
-      const csrfToken = getCsrfToken();
-      console.log('CSRF Token:', csrfToken);
-      
-      // Make a single API call to update everything
-      console.log('Sending profile update to API');
-      const response = await fetch(`http://127.0.0.1:8000/api/update-profile/`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'X-CSRFToken': csrfToken
-          // Don't set Content-Type header when sending FormData, 
-          // browser will set it automatically with the correct boundary
-        },
-        credentials: 'include', // Include cookies if you're using session authentication
-        body: formData
-      });
-      
-      // Check if the response is JSON
-      const contentType = response.headers.get('content-type');
-      let responseData;
-      
-      if (contentType && contentType.includes('application/json')) {
-        responseData = await response.json();
-      } else {
-        responseData = await response.text();
-      }
-      
-      if (!response.ok) {
-        console.error('API error response:', responseData);
-        console.error('Response status:', response.status);
-        console.error('Response status text:', response.statusText);
-        
-        let errorMessage = 'Failed to update profile';
-        if (typeof responseData === 'object') {
-          errorMessage = responseData.message || responseData.detail || JSON.stringify(responseData);
-        } else if (typeof responseData === 'string') {
-          errorMessage = responseData;
-        }
-        
-        toast.error(`Error: ${errorMessage}`);
-        throw new Error(errorMessage);
-      }
-      
-      console.log('Profile updated successfully:', responseData);
-      
-      // Update localStorage with new data
-      const updatedUserData = {
-        ...user,
-        first_name: userData.firstName,
-        last_name: userData.lastName,
-        firstName: userData.firstName,
-        lastName: userData.lastName,
-        phone_number: userData.phoneNumber,
-        phoneNumber: userData.phoneNumber,
-        birth_date: userData.birthDate,
-        birthDate: userData.birthDate,
-        profile_picture: typeof responseData === 'object' && responseData.profile_picture ? 
-          responseData.profile_picture : userData.profilePicture,
-        profilePicture: typeof responseData === 'object' && responseData.profile_picture ? 
-          responseData.profile_picture : userData.profilePicture,
-        address: {
-          addressLine: userData.address.addressLine,
-          city: userData.address.city,
-          province: userData.address.province,
-          postalCode: userData.address.postalCode,
-          country: userData.address.country,
-          addressType: userData.address.addressType || 'shipping'
-        }
-      };
-      
-      localStorage.setItem('user', JSON.stringify(updatedUserData));
-      
-      // Dispatch auth change event to update navbar
-      window.dispatchEvent(new Event('auth-change'));
 
+    try {
+      // Here you would typically send the updated data to your backend
+      // For now, we'll just update localStorage
+      localStorage.setItem('user', JSON.stringify(userData));
+      
+      // Simulate API call
+      await new Promise(resolve => setTimeout(resolve, 800));
+      
       setIsSaved(true);
+      setSelectedFile(null);
       toast.success('Profile updated successfully!');
     } catch (error) {
       console.error('Error updating profile:', error);
@@ -356,7 +114,7 @@ const ProfileSettings = () => {
   };
 
   return (
-    <div className="max-w-4xl mx-auto mt-10 p-6 bg-white rounded-lg shadow-md relative">
+    <div className="max-w-4xl mx-auto mt-10 p-6 bg-white rounded-lg shadow-md relative mb-10">
       {/* Back/Exit Button */}
       <Link
         to="/"
@@ -371,7 +129,7 @@ const ProfileSettings = () => {
       <form onSubmit={handleSubmit}>
         {/* Profile Picture Section */}
         <div className="mb-8 text-center">
-          <div className="w-32 h-32 mx-auto mb-4 rounded-full overflow-hidden bg-gray-200 flex items-center justify-center border-4 border-gray-300">
+          <div className="w-32 h-32 mx-auto mb-4 rounded-full overflow-hidden bg-gray-200 flex items-center justify-center border-4 border-gray-300 relative group">
             {userData.profilePicture ? (
               <img 
                 src={userData.profilePicture instanceof File ? URL.createObjectURL(userData.profilePicture) : userData.profilePicture} 
@@ -381,6 +139,11 @@ const ProfileSettings = () => {
             ) : (
               <FaUser className="text-gray-400 text-5xl" />
             )}
+            <div className="absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+              <label htmlFor="profilePicture" className="cursor-pointer text-white">
+                <FaCamera className="text-2xl" />
+              </label>
+            </div>
           </div>
           <label htmlFor="profilePicture" className="cursor-pointer inline-block bg-blue-500 text-white px-4 py-2 rounded-md hover:bg-blue-600 transition duration-300">
             Change Profile Picture
@@ -455,7 +218,7 @@ const ProfileSettings = () => {
               placeholder="Enter your phone number"
             />
           </div>
-          
+
           {/* Birth Date */}
           <div className="mb-4">
             <label htmlFor="birthDate" className="block mb-2 text-sm font-medium text-gray-700">Birth Date</label>
@@ -468,12 +231,8 @@ const ProfileSettings = () => {
               className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
           </div>
-        </div>
 
-        {/* Address Section */}
-        <div className="bg-gray-50 p-6 rounded-lg mb-6">
-          <h3 className="text-xl font-semibold mb-4 text-gray-700">Address Information</h3>
-
+          {/* Address */}
           <div className="mb-4">
             <label htmlFor="address.addressLine" className="block mb-2 text-sm font-medium text-gray-700">Street Address</label>
             <textarea

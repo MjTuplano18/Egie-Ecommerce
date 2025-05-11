@@ -34,7 +34,45 @@ export const productService = {
   }
 };
 
-// Cart-related API calls (we'll implement these later)
+// User-related API calls
+export const userService = {
+  // Update user profile
+  updateProfile: async (userId, userData) => {
+    return fetch(`${API_BASE_URL}/users/${userId}/`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${localStorage.getItem('authToken')}`
+      },
+      body: JSON.stringify(userData)
+    }).then(handleResponse);
+  },
+  
+  // Update user password
+  updatePassword: async (userId, passwordData) => {
+    return fetch(`${API_BASE_URL}/users/${userId}/change-password/`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${localStorage.getItem('authToken')}`
+      },
+      body: JSON.stringify(passwordData)
+    }).then(handleResponse);
+  },
+  
+  // Upload profile picture
+  uploadProfilePicture: async (userId, formData) => {
+    return fetch(`${API_BASE_URL}/users/${userId}/upload-profile-picture/`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${localStorage.getItem('authToken')}`
+      },
+      body: formData
+    }).then(handleResponse);
+  }
+};
+
+// Cart-related API calls
 export const cartService = {
   // Implementation will come in future steps
 };

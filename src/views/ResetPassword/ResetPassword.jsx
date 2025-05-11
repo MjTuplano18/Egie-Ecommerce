@@ -8,7 +8,8 @@ const ResetPassword = () => {
   const [verificationCode, setVerificationCode] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
-  const [showPassword, setShowPassword] = useState(false);
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [message, setMessage] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const navigate = useNavigate();
@@ -104,7 +105,7 @@ const ResetPassword = () => {
             </label>
             <div className="relative">
               <input
-                type={showPassword ? "text" : "password"}
+                type={showNewPassword ? "text" : "password"}
                 id="newPassword"
                 value={newPassword}
                 onChange={(e) => setNewPassword(e.target.value)}
@@ -114,9 +115,9 @@ const ResetPassword = () => {
               <button
                 type="button"
                 className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500"
-                onClick={() => setShowPassword(!showPassword)}
+                onClick={() => setShowNewPassword(!showNewPassword)}
               >
-                {showPassword ? <FaEyeSlash /> : <FaEye />}
+                {showNewPassword ? <FaEyeSlash className="w-5 h-5" /> : <FaEye className="w-5 h-5" />}
               </button>
             </div>
           </div>
@@ -125,14 +126,23 @@ const ResetPassword = () => {
             <label htmlFor="confirmPassword" className="block text-gray-700 mb-2">
               Confirm Password
             </label>
-            <input
-              type={showPassword ? "text" : "password"}
-              id="confirmPassword"
-              value={confirmPassword}
-              onChange={(e) => setConfirmPassword(e.target.value)}
-              className="w-full p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-green-500"
-              placeholder="Confirm new password"
-            />
+            <div className="relative">
+              <input
+                type={showConfirmPassword ? "text" : "password"}
+                id="confirmPassword"
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                className="w-full p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-green-500 pr-10"
+                placeholder="Confirm new password"
+              />
+              <button
+                type="button"
+                className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500"
+                onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+              >
+                {showConfirmPassword ? <FaEyeSlash className="w-5 h-5" /> : <FaEye className="w-5 h-5" />}
+              </button>
+            </div>
           </div>
 
           {message && (

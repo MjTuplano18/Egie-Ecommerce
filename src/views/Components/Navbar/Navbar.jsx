@@ -66,6 +66,7 @@ const Navbar = ({isAuth}) => {
   const [userData, setUserData] = useState(null);
   const navigate = useNavigate();
 
+<<<<<<< HEAD
   // Check if current route is in auth flows that shouldn't show profile nav
   const isAuthFlow = location.pathname.includes('/forgot-password') || 
                     location.pathname.includes('/reset-password') ||
@@ -85,6 +86,23 @@ const Navbar = ({isAuth}) => {
           const parsedUserData = JSON.parse(userDataString);
           console.log("User data found:", parsedUserData);
           setUserData(parsedUserData);
+=======
+  // Fetch user data from localStorage on component mount and when auth changes
+  useEffect(() => {
+    const checkAuthStatus = () => {
+      const userDataString = localStorage.getItem('user');
+      const accessToken = localStorage.getItem('accessToken');
+      const refreshToken = localStorage.getItem('refreshToken');
+
+      if (userDataString && accessToken && refreshToken) {
+        try {
+          const userData = JSON.parse(userDataString);
+          // Handle both profile_picture and profilePicture properties
+          if (userData.profile_picture && !userData.profilePicture) {
+            userData.profilePicture = userData.profile_picture;
+          }
+          setUserData(userData);
+>>>>>>> 3d30cb78a0d4d3c096a0c7a21b2f71090cd2af5e
           setIsSignedIn(true);
         } catch (error) {
           console.error("Error parsing user data:", error);
@@ -106,6 +124,7 @@ const Navbar = ({isAuth}) => {
   useEffect(() => {
     // Check auth status when component mounts
     checkAuthStatus();
+<<<<<<< HEAD
     
     // Listen for auth-related events
     const handleAuthChange = () => {
@@ -116,6 +135,15 @@ const Navbar = ({isAuth}) => {
     const handleStorageChange = (e) => {
       if (e.key === 'authToken' || e.key === 'user') {
         console.log("Storage change detected:", e.key);
+=======
+
+    // Listen for auth change events
+    window.addEventListener('auth-change', checkAuthStatus);
+
+    // Add event listener for storage changes (for multi-tab support)
+    window.addEventListener('storage', (event) => {
+      if (event.key === 'accessToken' || event.key === 'refreshToken' || event.key === 'user') {
+>>>>>>> 3d30cb78a0d4d3c096a0c7a21b2f71090cd2af5e
         checkAuthStatus();
       }
     };
@@ -133,8 +161,13 @@ const Navbar = ({isAuth}) => {
   const isActive = (path) => location.pathname === path;
 
   const handleSignOut = () => {
+<<<<<<< HEAD
     // Clear all auth data
     localStorage.removeItem('authToken'); // Changed from accessToken to authToken
+=======
+    // Clear user session data and tokens
+    localStorage.removeItem('accessToken');
+>>>>>>> 3d30cb78a0d4d3c096a0c7a21b2f71090cd2af5e
     localStorage.removeItem('refreshToken');
     localStorage.removeItem('user');
     
@@ -474,6 +507,7 @@ const Navbar = ({isAuth}) => {
                 {/* PROFILE AND HAMBURGER */}
                 <div className="flex items-center md:order-4 space-x-3 md:space-x-0 rtl:space-x-reverse">
                   {isSignedIn && (
+<<<<<<< HEAD
                     <div className="relative">
                       <button
                         type="button"
@@ -583,6 +617,57 @@ const Navbar = ({isAuth}) => {
                             </button>
                           </li>
                         </ul>
+=======
+                    <button
+                      type="button"
+                      className="flex text-sm rounded-full md:me-0 focus:ring-4 focus:ring-gray-300 dark:focus:ring-gray-600"
+                      id="user-menu-button"
+                      aria-expanded="false"
+                      data-dropdown-toggle="user-dropdown"
+                      data-dropdown-placement="bottom"
+                    >
+                      <span className="sr-only">Open user menu</span>
+                      {userData && userData.profilePicture ? (
+                        <img
+                          className="w-10 h-10 rounded-full object-cover border-2 border-blue-500"
+                          src={userData.profilePicture}
+                          alt="user photo"
+                        />
+                      ) : (
+                        <div className="w-10 h-10 rounded-full bg-gradient-to-br from-teal-300 to-lime-300 flex items-center justify-center text-white">
+                          <FaUser className="text-lg" />
+                        </div>
+                      )}
+                    </button>
+                  )}
+
+                  {/* Dropdown menu */}
+                  <div
+                    className="z-50 hidden my-4 text-base list-none bg-white divide-y divide-gray-100 rounded-lg shadow-sm dark:bg-gray-700 dark:divide-gray-600"
+                    id="user-dropdown"
+                  >
+                    <div className="px-4 py-3">
+                      <div className="flex items-center mb-2">
+                        {userData && userData.profilePicture ? (
+                          <img
+                            className="w-12 h-12 rounded-full object-cover mr-3 border-2 border-blue-500"
+                            src={userData.profilePicture}
+                            alt="user photo"
+                          />
+                        ) : (
+                          <div className="w-12 h-12 rounded-full bg-gradient-to-br from-teal-300 to-lime-300 flex items-center justify-center text-white mr-3">
+                            <FaUser className="text-xl" />
+                          </div>
+                        )}
+                        <div>
+                          <span className="block text-sm font-medium text-gray-900 dark:text-white">
+                            {getUserDisplayName()}
+                          </span>
+                          <span className="block text-sm text-gray-500 truncate dark:text-gray-400">
+                            {userData?.email || "user@example.com"}
+                          </span>
+                        </div>
+>>>>>>> 3d30cb78a0d4d3c096a0c7a21b2f71090cd2af5e
                       </div>
                     </div>
                   )}

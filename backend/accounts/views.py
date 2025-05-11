@@ -72,7 +72,7 @@ def signup(request):
 
         # Generate tokens for immediate sign in
         refresh = RefreshToken.for_user(customer)
-
+        
         return Response({
             'message': f'User {username} registered successfully!',
             'tokens': {
