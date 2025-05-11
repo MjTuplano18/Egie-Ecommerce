@@ -14,13 +14,14 @@ from django.utils.html import strip_tags
 from django.views.decorators.csrf import csrf_exempt
 from rest_framework.permissions import IsAuthenticated
 from django.contrib.auth.hashers import check_password
+from rest_framework_simplejwt.tokens import RefreshToken
 
 from rest_framework import status
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 
-from .models import Customer
+from .models import Customer, UserAddress
 
 # Serve React frontend
 def index(request):
@@ -39,8 +40,8 @@ def signup(request):
     first_name = request.data.get('firstName')
     last_name = request.data.get('lastName')
 
-    if not all([username, email, password, firebase_uid]):
-        return Response({'message': 'All fields are required!'},
+    if not all([username, email, firebase_uid]):  # Password not required for Google sign-up
+        return Response({'message': 'Username, email and Firebase UID are required!'},
                       status=status.HTTP_400_BAD_REQUEST)
 
     if Customer.objects.filter(username=username).exists():
@@ -56,7 +57,7 @@ def signup(request):
         customer = Customer.objects.create_user(
             username=username,
             email=email,
-            password=password,
+            password=password if password else None,  # Handle case where password is not provided (Google sign-up)
         )
 
         # Save first name and last name if provided
@@ -65,13 +66,26 @@ def signup(request):
         if last_name:
             customer.last_name = last_name
 
-        # Save firebase UID if needed
-        # customer.firebase_uid = firebase_uid  # Uncomment if you have this field in your model
-
+        # Save firebase UID
+        customer.firebase_uid = firebase_uid
         customer.save()
 
+        # Generate tokens for immediate sign in
+        refresh = RefreshToken.for_user(customer)
+
         return Response({
-            'message': f'User {username} registered successfully!'
+            'message': f'User {username} registered successfully!',
+            'tokens': {
+                'refresh': str(refresh),
+                'access': str(refresh.access_token),
+            },
+            'user': {
+                'id': customer.id,
+                'username': customer.username,
+                'email': customer.email,
+                'first_name': customer.first_name,
+                'last_name': customer.last_name
+            }
         }, status=status.HTTP_201_CREATED)
     except Exception as e:
         return Response({
@@ -79,37 +93,79 @@ def signup(request):
         }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 # --- SIGN IN ---
+
+
 @api_view(['POST'])
 @permission_classes([AllowAny])
 @csrf_exempt
 def signin(request):
     email = request.data.get('email')
     password = request.data.get('password')
-
-    if not email or not password:
-        return Response({'message': 'Email and password are required!'},
-                        status=status.HTTP_400_BAD_REQUEST
-                        )
+    firebase_uid = request.data.get('firebaseUid')
 
     try:
         # Get the user with the provided email
         customer = Customer.objects.get(email=email)
 
-        # Authenticate with the username associated with this email
-        user = authenticate(username=customer.username, password=password)
+        # If firebase_uid is provided, handle Google sign in
+        if firebase_uid:
+            if customer.firebase_uid == firebase_uid:
+                login(request, customer)
+                refresh = RefreshToken.for_user(customer)
+                response_data = {
+                    'message': 'Login successful!',
+                    'tokens': {
+                        'refresh': str(refresh),
+                        'access': str(refresh.access_token),
+                    },
+                    'user': {
+                        'id': customer.id,
+                        'username': customer.username,
+                        'email': customer.email,
+                        'first_name': customer.first_name,
+                        'last_name': customer.last_name,
+                        'phone_number': customer.phone_number,
+                        'birth_date': customer.birth_date,
+                    }
+                }
 
+                if customer.profile_picture:
+                    response_data['user']['profile_picture'] = request.build_absolute_uri(settings.MEDIA_URL + customer.profile_picture)
+                else:
+                    response_data['user']['profile_picture'] = None
+
+                return Response(response_data, status=status.HTTP_200_OK)
+            else:
+                return Response({'message': 'Invalid credentials!'}, status=status.HTTP_401_UNAUTHORIZED)
+
+        # Handle regular email/password sign in
+        user = authenticate(username=customer.username, password=password)
         if user is not None:
             login(request, user)
-            return Response({
+            refresh = RefreshToken.for_user(user)
+            response_data = {
                 'message': 'Login successful!',
-                'token': 'your-token-generation-logic-here',  # You might want to generate a token
+                'tokens': {
+                    'refresh': str(refresh),
+                    'access': str(refresh.access_token),
+                },
                 'user': {
                     'id': user.id,
                     'username': user.username,
                     'email': user.email,
-                    # Add other user fields as needed
+                    'first_name': user.first_name,
+                    'last_name': user.last_name,
+                    'phone_number': user.phone_number,
+                    'birth_date': user.birth_date,
                 }
-            }, status=status.HTTP_200_OK)
+            }
+
+            if user.profile_picture:
+                response_data['user']['profile_picture'] = request.build_absolute_uri(settings.MEDIA_URL + user.profile_picture)
+            else:
+                response_data['user']['profile_picture'] = None
+
+            return Response(response_data, status=status.HTTP_200_OK)
         else:
             return Response({'message': 'Invalid password!'}, status=status.HTTP_401_UNAUTHORIZED)
 
@@ -118,10 +174,6 @@ def signin(request):
     except Exception as e:
         return Response({'message': f'An error occurred: {str(e)}'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
-
-from django.core.mail import send_mail
-from django.template.loader import render_to_string
-from django.utils.html import strip_tags
 
 @api_view(['POST'])
 @permission_classes([AllowAny])
@@ -244,44 +296,6 @@ def verify_and_reset_password(request):
             'success': False
         }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
-@api_view(['POST'])
-@permission_classes([AllowAny])
-@csrf_exempt
-def reset_password(request):
-    """
-    Direct password reset without verification (for admin or emergency use)
-    """
-    email = request.data.get('email')
-    new_password = request.data.get('new_password')
-
-    if not email or not new_password:
-        return Response({
-            'message': 'Email and new password are required',
-            'success': False
-        }, status=status.HTTP_400_BAD_REQUEST)
-
-    try:
-        user = Customer.objects.get(email=email)
-
-        # Use set_password to properly hash the password
-        user.set_password(new_password)
-        user.save()
-
-        return Response({
-            'message': 'Password updated successfully',
-            'success': True
-        }, status=status.HTTP_200_OK)
-    except Customer.DoesNotExist:
-        return Response({
-            'message': 'User not found',
-            'success': False
-        }, status=status.HTTP_404_NOT_FOUND)
-    except Exception as e:
-        return Response({
-            'message': f'Error updating password: {str(e)}',
-            'success': False
-        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-
 
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
@@ -384,9 +398,16 @@ def change_password(request):
         user.set_password(new_password)
         user.save()
 
+        # Generate new tokens since credentials changed
+        refresh = RefreshToken.for_user(user)
+
         return Response({
             'message': 'Password changed successfully',
-            'success': True
+            'success': True,
+            'tokens': {
+                'refresh': str(refresh),
+                'access': str(refresh.access_token),
+            }
         }, status=status.HTTP_200_OK)
 
     except Exception as e:
@@ -395,3 +416,113 @@ def change_password(request):
             'success': False
         }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def get_profile(request):
+    """
+    Get user profile information
+    """
+    try:
+        user = request.user
+        
+        response_data = {
+            'id': user.id,
+            'username': user.username,
+            'email': user.email,
+            'first_name': user.first_name,
+            'last_name': user.last_name,
+            'phone_number': user.phone_number,
+            'birth_date': user.birth_date,
+        }
+
+        if user.profile_picture:
+            response_data['profile_picture'] = request.build_absolute_uri(settings.MEDIA_URL + user.profile_picture)
+        else:
+            response_data['profile_picture'] = None
+
+        return Response(response_data, status=status.HTTP_200_OK)
+    except Exception as e:
+        return Response({
+            'message': f'Error fetching profile: {str(e)}',
+            'success': False
+        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def get_address(request):
+    """
+    Get user's default address
+    """
+    try:
+        user = request.user
+        address = user.addresses.filter(is_default=True).first() or user.addresses.first()
+        
+        if address:
+            return Response({
+                'address_line': address.address_line,
+                'city': address.city,
+                'province': address.province,
+                'postal_code': address.postal_code,
+                'country': address.country,
+                'address_type': address.address_type,
+            }, status=status.HTTP_200_OK)
+        else:
+            return Response({}, status=status.HTTP_200_OK)
+    except Exception as e:
+        return Response({
+            'message': f'Error fetching address: {str(e)}',
+            'success': False
+        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+@csrf_exempt
+def update_address(request):
+    """
+    Update or create user's address
+    """
+    try:
+        user = request.user
+        address_data = {
+            'address_line': request.data.get('address_line'),
+            'city': request.data.get('city'),
+            'province': request.data.get('province'),
+            'postal_code': request.data.get('postal_code'),
+            'country': request.data.get('country', 'Philippines'),
+            'address_type': request.data.get('address_type', 'shipping'),
+        }
+        
+        # Try to get existing address of the same type
+        address = user.addresses.filter(address_type=address_data['address_type']).first()
+        
+        if address:
+            # Update existing address
+            for key, value in address_data.items():
+                setattr(address, key, value)
+            address.save()
+        else:
+            # Create new address
+            address = UserAddress.objects.create(user=user, **address_data)
+            # Make it default if it's the only address
+            if user.addresses.count() == 1:
+                address.is_default = True
+                address.save()
+
+        return Response({
+            'message': 'Address updated successfully',
+            'success': True,
+            'address': {
+                'address_line': address.address_line,
+                'city': address.city,
+                'province': address.province,
+                'postal_code': address.postal_code,
+                'country': address.country,
+                'address_type': address.address_type,
+            }
+        }, status=status.HTTP_200_OK)
+    except Exception as e:
+        return Response({
+            'message': f'Error updating address: {str(e)}',
+            'success': False
+        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)

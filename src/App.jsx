@@ -1,5 +1,7 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import {BrowserRouter as Router, Routes, Route, useLocation} from 'react-router-dom'
+import { initFlowbite } from 'flowbite';
+import { AuthProvider } from './Authcontext'
 import Navbar from './views/Components/Navbar/Navbar'
 import SignUp from './views/SignUp/SignUp'
 import Landing from './views/Landing/Landing'
@@ -16,18 +18,19 @@ import ResetPassword from "./views/ResetPassword/ResetPassword";
 import ProfileSettings from './views/Profile/ProfileSettings';
 import Settings from './views/Settings/Settings';
 
-
-
-
-
 import { Toaster } from "sonner";
 
 function App() {
+  useEffect(() => {
+    initFlowbite();
+  }, []);
 
   return (
-    <Router>
-      <Main />
-    </Router>
+    <AuthProvider>
+      <Router>
+        <Main />
+      </Router>
+    </AuthProvider>
   )
 }
 
@@ -57,12 +60,6 @@ const Main = () => {
         <Route path="/verify-email" element={<VerifyEmail />} />
         <Route path="/profile/settings" element={<ProfileSettings />} />
         <Route path="/settings" element={<Settings />} />
-
-
-
-
-
-
 
         {/* Add more routes as needed */}
       </Routes>

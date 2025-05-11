@@ -188,28 +188,61 @@ const SignUp = () => {
       const emailExists = await checkEmailExists(user.email);
 
       if (emailExists) {
-        // If email exists, just log them in
-        localStorage.setItem("authToken", user.accessToken);
-        localStorage.setItem("user", JSON.stringify(user));
-        navigate("/");
-      } else {
-        // If new user, collect additional information
-        const tempUserData = {
-          firstName: user.displayName ? user.displayName.split(' ')[0] : '',
-          lastName: user.displayName ? user.displayName.split(' ').slice(1).join(' ') : '',
+        // If email exists, redirect to sign in
+        setMessage("Email already registered. Please sign in with Google instead.");
+        setTimeout(() => navigate("/signin"), 2000);
+        return;
+      }
+
+      // Get user details from Google profile
+      const displayName = user.displayName || '';
+      const nameParts = displayName.split(' ');
+      const firstName = nameParts[0] || '';
+      const lastName = nameParts.slice(1).join(' ') || '';
+      const suggestedUsername = user.email.split('@')[0];
+
+      // Try to create account in backend
+      const response = await fetch("http://127.0.0.1:8000/api/signup/", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          username: suggestedUsername,
           email: user.email,
           firebaseUid: user.uid,
-          // Generate a username from email
-          username: user.email.split('@')[0]
+          firstName: firstName,
+          lastName: lastName
+        }),
+        credentials: "include"
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        // Store tokens and user data
+        localStorage.setItem("accessToken", data.tokens.access);
+        localStorage.setItem("refreshToken", data.tokens.refresh);
+
+        const userData = {
+          ...data.user,
+          first_name: data.user.first_name,
+          firstName: data.user.first_name,
+          last_name: data.user.last_name,
+          lastName: data.user.last_name,
         };
 
-        localStorage.setItem("tempUserData", JSON.stringify(tempUserData));
-        // You might want to redirect to a profile completion page
-        navigate("/complete-profile");
+        localStorage.setItem("user", JSON.stringify(userData));
+        window.dispatchEvent(new Event('auth-change'));
+
+        setMessage("Sign up successful!");
+        setTimeout(() => navigate("/"), 1500);
+      } else {
+        setMessage(data.message || "Failed to create account");
       }
     } catch (error) {
       console.error("Google Sign-Up Error:", error);
-      setMessage("Google Sign-Up Failed!");
+      setMessage("Google Sign-Up Failed: " + (error.message || "Unknown error"));
     }
   };
 
@@ -314,11 +347,7 @@ const SignUp = () => {
             onClick={() => setShowPassword(!showPassword)}
             className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700 focus:outline-none"
           >
-            {showPassword ? (
-              <IoMdEyeOff className="w-5 h-5" />
-            ) : (
-              <FaEye className="w-5 h-5" />
-            )}
+            {showPassword ? <IoMdEyeOff className="w-5 h-5" /> : <FaEye className="w-5 h-5" />}
           </button>
         </div>
 

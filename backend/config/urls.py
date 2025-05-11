@@ -23,6 +23,10 @@ from rest_framework import routers
 from products.views import ProductViewSet
 from django.conf import settings
 from django.conf.urls.static import static
+from rest_framework_simplejwt.views import (
+    TokenObtainPairView,
+    TokenRefreshView,
+)
 
 #Router and registration for viewsets
 router =routers.DefaultRouter()
@@ -38,11 +42,12 @@ urlpatterns = [
     path('api/', include(router.urls)),
     path("api/create-order/", orders_views.create_order, name="create_order"),
     path('api/get-csrf-token/', get_csrf_token, name='get_csrf_token'),
-    
+    path('api/token/', TokenObtainPairView.as_view(), name='token_obtain_pair'),
+    path('api/token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
+
     # Admin and other URLs
     path('admin/', admin.site.urls),
-
-    # This should be the LAST pattern as it might be catching all requests
+  # This should be the LAST pattern as it might be catching all requests
     path('', include('accounts.urls')),
 ]
 

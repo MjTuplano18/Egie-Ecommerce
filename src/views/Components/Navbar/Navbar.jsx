@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import {Link} from "react-router-dom";
 import "../../../../src/index.css";
 import "flowbite";
@@ -7,8 +7,10 @@ import { IoBookmark } from "react-icons/io5";
 import { FaShoppingCart } from "react-icons/fa";
 import { FaSquareFacebook } from "react-icons/fa6";
 import { FaInstagram } from "react-icons/fa6";
-import { FaUser } from "react-icons/fa";
 import { useNavigate } from "react-router-dom";
+import { useLocation } from "react-router-dom";
+import { FaBookmark } from "react-icons/fa";
+import { FaUser } from "react-icons/fa";
 
 const categorizedParts = [
   {
@@ -54,63 +56,95 @@ const categorizedParts = [
 ];
 
 const Navbar = ({isAuth}) => {
+  const [cartCount, setCartCount] = useState(2); // example
+  const [notificationCount, setNotificationCount] = useState(3); // example
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const [isUserDropdownOpen, setIsUserDropdownOpen] = useState(false);
+  const userDropdownRef = useRef(null);
+  const location = useLocation();
   const [isSignedIn, setIsSignedIn] = useState(false);
   const [userData, setUserData] = useState(null);
   const navigate = useNavigate();
 
-  // Fetch user data from localStorage on component mount and when auth changes
-  useEffect(() => {
-    const checkAuthStatus = () => {
-      const userDataString = localStorage.getItem('user');
-      const token = localStorage.getItem('authToken');
+  // Check if current route is in auth flows that shouldn't show profile nav
+  const isAuthFlow = location.pathname.includes('/forgot-password') || 
+                    location.pathname.includes('/reset-password') ||
+                    location.pathname.includes('/signin') ||
+                    location.pathname.includes('/auth');
 
-      if (userDataString && token) {
+  // Function to check auth status
+  const checkAuthStatus = () => {
+    try {
+      const token = localStorage.getItem('authToken'); // Changed from accessToken to authToken
+      const userDataString = localStorage.getItem('user');
+      
+      console.log("Checking auth status:", { hasToken: !!token, hasUserData: !!userDataString });
+      
+      if (token && userDataString) {
         try {
-          const userData = JSON.parse(userDataString);
-          setUserData(userData);
+          const parsedUserData = JSON.parse(userDataString);
+          console.log("User data found:", parsedUserData);
+          setUserData(parsedUserData);
           setIsSignedIn(true);
         } catch (error) {
           console.error("Error parsing user data:", error);
           setIsSignedIn(false);
+          setUserData(null);
         }
       } else {
+        console.log("No token or user data found");
         setIsSignedIn(false);
         setUserData(null);
       }
-    };
+    } catch (error) {
+      console.error('Error checking auth status:', error);
+      setIsSignedIn(false);
+      setUserData(null);
+    }
+  };
 
+  useEffect(() => {
     // Check auth status when component mounts
     checkAuthStatus();
-
-    // Listen for auth change events
-    window.addEventListener('auth-change', checkAuthStatus);
-
-    // Add event listener for storage changes (for multi-tab support)
-    window.addEventListener('storage', (event) => {
-      if (event.key === 'authToken' || event.key === 'user') {
+    
+    // Listen for auth-related events
+    const handleAuthChange = () => {
+      console.log("Auth change event received");
+      checkAuthStatus();
+    };
+    
+    const handleStorageChange = (e) => {
+      if (e.key === 'authToken' || e.key === 'user') {
+        console.log("Storage change detected:", e.key);
         checkAuthStatus();
       }
-    });
-
-    // Clean up event listeners
+    };
+    
+    window.addEventListener('auth-change', handleAuthChange);
+    window.addEventListener('storage', handleStorageChange);
+    
     return () => {
-      window.removeEventListener('auth-change', checkAuthStatus);
-      window.removeEventListener('storage', checkAuthStatus);
+      window.removeEventListener('auth-change', handleAuthChange);
+      window.removeEventListener('storage', handleStorageChange);
     };
   }, []);
 
+  const isProductsActive = location.pathname.startsWith("/products");
+  const isActive = (path) => location.pathname === path;
+
   const handleSignOut = () => {
-    // Clear user session data and tokens
-    localStorage.removeItem('authToken');
+    // Clear all auth data
+    localStorage.removeItem('authToken'); // Changed from accessToken to authToken
+    localStorage.removeItem('refreshToken');
     localStorage.removeItem('user');
-
-    setIsSignedIn(false);
+    
     setUserData(null);
-
+    setIsSignedIn(false);
+    
     // Dispatch auth change event
     window.dispatchEvent(new Event('auth-change'));
-
-    navigate("/signin"); // Redirect to Sign In page
+    
+    navigate("/signin");
   };
 
   const [searchQuery, setSearchQuery] = useState("");
@@ -126,10 +160,12 @@ const Navbar = ({isAuth}) => {
   const getUserDisplayName = () => {
     if (!userData) return "User";
 
-    if (userData.first_name && userData.last_name) {
+    if (userData.firstName && userData.lastName) {
+      return `${userData.firstName} ${userData.lastName}`;
+    } else if (userData.first_name && userData.last_name) {
       return `${userData.first_name} ${userData.last_name}`;
-    } else if (userData.first_name) {
-      return userData.first_name;
+    } else if (userData.firstName || userData.first_name) {
+      return userData.firstName || userData.first_name;
     } else if (userData.username) {
       return userData.username;
     } else {
@@ -137,12 +173,24 @@ const Navbar = ({isAuth}) => {
     }
   };
 
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    function handleClickOutside(event) {
+      if (userDropdownRef.current && !userDropdownRef.current.contains(event.target)) {
+        setIsUserDropdownOpen(false);
+      }
+    }
+    
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, []);
+
   return (
     <div className={`navbar ${isAuth ? "auth-navbar" : "main-navbar"}`}>
       {isAuth ? (
-        <div className="auth-header ">
-
-        </div>
+        <div className="auth-header "></div>
       ) : (
         <div className="main-header">
           <nav className="bg-[#F3F7F6] border-gray-200 ">
@@ -174,7 +222,6 @@ const Navbar = ({isAuth}) => {
               {/* LOGO */}
               <Link
                 to="/"
-                href=""
                 className="flex items-center space-x-3 rtl:space-x-reverse"
               >
                 <img
@@ -191,6 +238,23 @@ const Navbar = ({isAuth}) => {
               >
                 {/* Search bar for mobile */}
                 <div className="relative mt-3 md:hidden">
+                  <div className="absolute inset-y-0 start-0 flex items-center ps-3 pointer-events-none">
+                    <svg
+                      className="w-4 h-4 text-gray-500 dark:text-gray-400"
+                      aria-hidden="true"
+                      xmlns="http://www.w3.org/2000/svg"
+                      fill="none"
+                      viewBox="0 0 20 20"
+                    >
+                      <path
+                        stroke="currentColor"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth="2"
+                        d="m19 19-4-4m0-7A7 7 0 1 1 1 8a7 7 0 0 1 14 0Z"
+                      />
+                    </svg>
+                  </div>
                   <input
                     type="text"
                     id="search-navbar"
@@ -202,8 +266,11 @@ const Navbar = ({isAuth}) => {
                   <li>
                     <Link
                       to="/"
-                      href="#"
-                      className="block py-2 px-3 bg-blue-700 rounded-sm md:text-[#3e80349b] md:p-0 hover:text-black md:bg-[#F3F7F6]"
+                      className={`block py-2 px-3 rounded-sm md:p-0 ${
+                        isActive("/")
+                          ? "text-blue-700 font-semibold"
+                          : "text-gray-900"
+                      } hover:text-black`}
                       aria-current="page"
                     >
                       Home
@@ -214,7 +281,12 @@ const Navbar = ({isAuth}) => {
                     <button
                       id="mega-menu-dropdown-button"
                       data-dropdown-toggle="mega-menu-dropdown"
-                      className="flex items-center justify-between w-full py-2 px-3 font-medium text-gray-900 border-b border-gray-100 md:w-auto hover:bg-gray-50 md:hover:bg-transparent md:border-0 md:hover:text-blue-600 md:p-0 md:bg-[#F3F7F6]"
+                      onClick={() => setIsDropdownOpen((prev) => !prev)}
+                      className={`flex items-center justify-between w-full py-2 px-3 font-medium border-b border-gray-100 md:w-auto md:border-0 md:p-0 cursor-pointer md:bg-[#F3F7F6] ${
+                        isProductsActive
+                          ? "text-blue-700 font-semibold"
+                          : "text-gray-900 hover:text-black"
+                      }`}
                     >
                       Products{" "}
                       <svg
@@ -236,7 +308,9 @@ const Navbar = ({isAuth}) => {
 
                     <div
                       id="mega-menu-dropdown"
-                      className="absolute z-1000 hidden grid w-auto grid-cols-2 text-sm bg-white border border-gray-100 rounded-lg shadow-md dark:border-gray-700 md:grid-cols-3 dark:bg-gray-700"
+                      className={`absolute z-50 ${
+                        isDropdownOpen ? "grid" : "hidden"
+                      } w-auto grid-cols-2 text-sm bg-white border border-gray-100 rounded-lg shadow-md dark:border-gray-700 md:grid-cols-3 dark:bg-gray-700 `}
                     >
                       {categorizedParts.map((section, index) => (
                         <div
@@ -249,7 +323,7 @@ const Navbar = ({isAuth}) => {
                               <li key={idx}>
                                 <Link
                                   to="/products"
-                                  href="#"
+                                  onClick={() => setIsDropdownOpen(false)}
                                   className="text-gray-500 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-500"
                                 >
                                   {item}
@@ -262,20 +336,28 @@ const Navbar = ({isAuth}) => {
                     </div>
                   </li>
                   <li>
-                    <a
-                      href="#"
-                      className="block py-2 px-3 text-gray-900 hover:bg-gray-100 md:hover:bg-transparent md:hover:text-blue-700 md:p-0 md:bg-[#F3F7F6]"
+                    <Link
+                      to="/buildpc"
+                      className={`block py-2 px-3 rounded-sm md:p-0 ${
+                        isActive("/buildpc")
+                          ? "text-blue-700 font-semibold"
+                          : "text-gray-900"
+                      } hover:text-black`}
                     >
                       PC Build
-                    </a>
+                    </Link>
                   </li>
                   <li>
-                    <a
-                      href="#"
-                      className="block py-2 px-3 text-gray-900 hover:bg-gray-100 md:hover:bg-transparent md:hover:text-blue-700 md:p-0 md:bg-[#F3F7F6]"
+                    <Link
+                      to="/contactus"
+                      className={`block py-2 px-3 rounded-sm md:p-0 ${
+                        isActive("/contactus")
+                          ? "text-blue-700 font-semibold"
+                          : "text-gray-900"
+                      } hover:text-black`}
                     >
                       Contact Us
-                    </a>
+                    </Link>
                   </li>
                 </ul>
               </div>
@@ -283,7 +365,7 @@ const Navbar = ({isAuth}) => {
               {/* RIGHT */}
               <div className="flex flex-wrap items-center justify-between md:order-3 mx-5 ">
                 <div className="flex items-center md:order-2">
-                  {/* Small Screen Search Button */}
+                  {/* Small Screen Search Button */}                  
                   <button
                     type="button"
                     data-collapse-toggle="navbar-user"
@@ -326,29 +408,47 @@ const Navbar = ({isAuth}) => {
                 </div>
 
                 {/* BUTTONS */}
-                <div
-                  className={`flex md:order-3 mx-4 auth-buttons ${
-                    isSignedIn ? "signed-in" : "signed-out"
-                  }`}
-                >
+                <div className="flex md:order-3 mx-4 auth-buttons">
                   {isSignedIn ? (
                     <>
                       <Link
+                        to="/wishlist"
+                        className="relative inline-flex items-center justify-center p-0.5 mb-2 me-2 text-sm font-medium text-gray-900 rounded-lg group bg-gradient-to-br from-teal-300 to-lime-300 group-hover:from-teal-300 group-hover:to-lime-300 "
+                      >
+                        <span className="relative px-5 py-2.5 transition-all ease-in duration-75 bg-white rounded-md group-hover:bg-transparent group-hover:dark:bg-transparent">
+                          <FaBookmark />
+                        </span>
+                      </Link>
+
+                      <Link
                         to="/cart"
-                        className="relative inline-flex items-center justify-center p-0.5 mb-2 me-2 overflow-hidden text-sm font-medium text-gray-900 rounded-lg group bg-gradient-to-br from-teal-300 to-lime-300 group-hover:from-teal-300 group-hover:to-lime-300 "
+                        className="relative inline-flex items-center justify-center p-0.5 mb-2 me-2 text-sm font-medium text-gray-900 rounded-lg group bg-gradient-to-br from-teal-300 to-lime-300 group-hover:from-teal-300 group-hover:to-lime-300 "
                       >
                         <span className="relative px-5 py-2.5 transition-all ease-in duration-75 bg-white rounded-md group-hover:bg-transparent group-hover:dark:bg-transparent">
                           <FaShoppingCart className="cart" />
                         </span>
+                        {cartCount > 0 && (
+                          <span className="absolute top-2 right-2 transform translate-x-1/2 -translate-y-1/2 bg-red-600 text-white text-xs font-bold px-1.5 py-0.5 rounded-full">
+                            {cartCount}
+                          </span>
+                        )}
                       </Link>
 
-                      <button className="relative inline-flex items-center justify-center p-0.5 mb-2 me-2 overflow-hidden text-sm font-medium text-gray-900 rounded-lg group bg-gradient-to-br from-teal-300 to-lime-300 group-hover:from-teal-300 group-hover:to-lime-300 ">
+                      <Link
+                        to="/notification"
+                        className="relative inline-flex items-center justify-center p-0.5 mb-2 me-2 text-sm font-medium text-gray-900 rounded-lg group bg-gradient-to-br from-teal-300 to-lime-300 group-hover:from-teal-300 group-hover:to-lime-300 "
+                      >
                         <span className="relative px-5 py-2.5 transition-all ease-in duration-75 bg-white rounded-md group-hover:bg-transparent group-hover:dark:bg-transparent">
                           <IoNotifications />
                         </span>
-                      </button>
+                        {notificationCount > 0 && (
+                          <span className="absolute top-2 right-2 transform translate-x-1/2 -translate-y-1/2 bg-red-600 text-white text-xs font-bold px-1.5 py-0.5 rounded-full">
+                            {notificationCount}
+                          </span>
+                        )}
+                      </Link>
                     </>
-                  ) : (
+                  ) : !isAuthFlow && (
                     <>
                       <Link
                         to="/signin"
@@ -374,77 +474,118 @@ const Navbar = ({isAuth}) => {
                 {/* PROFILE AND HAMBURGER */}
                 <div className="flex items-center md:order-4 space-x-3 md:space-x-0 rtl:space-x-reverse">
                   {isSignedIn && (
-                    <button
-                      type="button"
-                      className="flex text-sm bg-gray-800 rounded-full md:me-0 focus:ring-4 focus:ring-gray-300 dark:focus:ring-gray-600"
-                      id="user-menu-button"
-                      aria-expanded="false"
-                      data-dropdown-toggle="user-dropdown"
-                      data-dropdown-placement="bottom"
-                    >
-                      <span className="sr-only">Open user menu</span>
-                      {userData && userData.profilePicture ? (
-                        <img
-                          className="w-8 h-8 rounded-full"
-                          src={userData.profilePicture}
-                          alt="user photo"
-                        />
-                      ) : (
-                        <div className="w-8 h-8 rounded-full bg-gray-600 flex items-center justify-center text-white">
-                          <FaUser />
-                        </div>
-                      )}
-                    </button>
-                  )}
+                    <div className="relative">
+                      <button
+                        type="button"
+                        className="flex text-sm rounded-full md:me-0 focus:ring-4 focus:ring-gray-300"
+                        id="user-menu-button"
+                        aria-expanded={isUserDropdownOpen}
+                        onClick={() => setIsUserDropdownOpen(!isUserDropdownOpen)}
+                      >
+                        <span className="sr-only">Open user menu</span>
+                        {userData && (userData.profilePicture || userData.profile_picture) ? (
+                          <img
+                            className="w-10 h-10 rounded-full object-cover border-2 border-blue-500"
+                            src={userData.profilePicture || userData.profile_picture}
+                            alt="user photo"
+                          />
+                        ) : (
+                          <div className="w-10 h-10 rounded-full bg-gradient-to-br from-teal-300 to-lime-300 flex items-center justify-center text-white">
+                            <FaUser className="text-lg" />
+                          </div>
+                        )}
+                      </button>
 
-                  {/* Dropdown menu */}
-                  <div
-                    className="z-50 hidden my-4 text-base list-none bg-white divide-y divide-gray-100 rounded-lg shadow-sm dark:bg-gray-700 dark:divide-gray-600"
-                    id="user-dropdown"
-                  >
-                    <div className="px-4 py-3">
-                      <span className="block text-sm text-gray-900 dark:text-white">
-                        {getUserDisplayName()}
-                      </span>
-                      <span className="block text-sm text-gray-500 truncate dark:text-gray-400">
-                        {userData?.email || "user@example.com"}
-                      </span>
+                      {/* Dropdown menu */}
+                      <div
+                        ref={userDropdownRef}
+                        className={`z-50 ${isUserDropdownOpen ? 'block' : 'hidden'} text-base list-none bg-white divide-y divide-gray-100 rounded-lg shadow-lg`}
+                        style={{ 
+                          position: 'absolute',
+                          right: 0,
+                          top: '100%',
+                          marginTop: '0.5rem',
+                          width: '240px'
+                        }}
+                        id="user-dropdown"
+                      >
+                        <div className="px-4 py-3">
+                          <div className="flex items-center mb-2">
+                            {userData && (userData.profilePicture || userData.profile_picture) ? (
+                              <img
+                                className="w-12 h-12 rounded-full object-cover mr-3 border-2 border-blue-500"
+                                src={userData.profilePicture || userData.profile_picture}
+                                alt="user photo"
+                              />
+                            ) : (
+                              <div className="w-12 h-12 rounded-full bg-gradient-to-br from-teal-300 to-lime-300 flex items-center justify-center text-white mr-3">
+                                <FaUser className="text-xl" />
+                              </div>
+                            )}
+                            <div>
+                              <span className="block text-sm font-medium text-gray-900 dark:text-white">
+                                {getUserDisplayName()}
+                              </span>
+                              <span className="block text-sm text-gray-500 truncate dark:text-gray-400">
+                                {userData?.email || "user@example.com"}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                        <ul className="py-2" aria-labelledby="user-menu-button">
+                          <li>
+                            <Link
+                              to="/profile/settings"
+                              onClick={() => setIsUserDropdownOpen(false)}
+                              className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 dark:hover:bg-gray-600 dark:text-gray-200 dark:hover:text-white"
+                            >
+                              <FaUser className="mr-2 text-gray-600" />
+                              Profile Settings
+                            </Link>
+                          </li>
+                          <li>
+                            <Link
+                              to="/settings"
+                              onClick={() => setIsUserDropdownOpen(false)}
+                              className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 dark:hover:bg-gray-600 dark:text-gray-200 dark:hover:text-white"
+                            >
+                              <svg className="w-4 h-4 mr-2 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path>
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                              </svg>
+                              Settings
+                            </Link>
+                          </li>
+                          <li>
+                            <Link
+                              to="/orders"
+                              onClick={() => setIsUserDropdownOpen(false)}
+                              className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 dark:hover:bg-gray-600 dark:text-gray-200 dark:hover:text-white"
+                            >
+                              <svg className="w-4 h-4 mr-2 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"></path>
+                              </svg>
+                              Orders
+                            </Link>
+                          </li>
+                          <li>
+                            <button
+                              onClick={() => {
+                                setIsUserDropdownOpen(false);
+                                handleSignOut();
+                              }}
+                              className="flex w-full items-center text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 dark:hover:bg-gray-600 dark:text-gray-200 dark:hover:text-white"
+                            >
+                              <svg className="w-4 h-4 mr-2 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path>
+                              </svg>
+                              Sign out
+                            </button>
+                          </li>
+                        </ul>
+                      </div>
                     </div>
-                    <ul className="py-2" aria-labelledby="user-menu-button">
-                      <li>
-                        <Link
-                          to="/profile/settings"
-                          className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 dark:hover:bg-gray-600 dark:text-gray-200 dark:hover:text-white"
-                        >
-                          Profile
-                        </Link>
-                      </li>
-                      <li>
-                        <Link
-                          to="/settings"
-                          className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 dark:hover:bg-gray-600 dark:text-gray-200 dark:hover:text-white"
-                        >
-                          Settings
-                        </Link>
-                      </li>
-                      <li>
-                        <Link
-                          to="/orders"
-                          className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 dark:hover:bg-gray-600 dark:text-gray-200 dark:hover:text-white"
-                        >
-                          Orders
-                        </Link>
-                      </li>
-                      <li>
-                        <button
-                          onClick={handleSignOut}
-                          className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 dark:hover:bg-gray-600 dark:text-gray-200 dark:hover:text-white"
-                        >
-                          Sign out
-                        </button>
-                      </li>
-                    </ul>
-                  </div>
+                  )}
 
                   <button
                     data-collapse-toggle="navbar-user"

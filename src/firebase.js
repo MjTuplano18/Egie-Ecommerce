@@ -8,12 +8,13 @@ import {
   signInWithEmailAndPassword,
   applyActionCode
 } from "firebase/auth";
+import { getStorage } from "firebase/storage";
 
 const firebaseConfig = {
     apiKey: "AIzaSyA2EFH7dtZzR1gdIOv3Onf5vSmplv_2Vqg",
     authDomain: "fb-and--authentication.firebaseapp.com",
     projectId: "fb-and--authentication",
-    storageBucket: "fb-and--authentication.firebasestorage.app",
+    storageBucket: "fb-and--authentication.appspot.com",
     messagingSenderId: "324713614550",
     appId: "1:324713614550:web:edb5648f76951ff249cd77",
     measurementId: "G-F6DBPV9LCS"
@@ -22,6 +23,7 @@ const firebaseConfig = {
 // Initialize Firebase
 const app = initializeApp(firebaseConfig);
 export const auth = getAuth(app);
+export const storage = getStorage(app);
 
 // Configure email verification settings
 auth.useDeviceLanguage(); // Use the browser's language for sending verification emails
@@ -85,7 +87,5 @@ export const verifyEmail = async (actionCode) => {
     throw error;
   }
 };
-
-
 
 export default app;
