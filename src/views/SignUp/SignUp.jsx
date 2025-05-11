@@ -211,13 +211,34 @@ const SignUp = () => {
           username: suggestedUsername,
           email: user.email,
           firebaseUid: user.uid,
-          // Generate a username from email
-          username: user.email.split('@')[0]
+          firstName: firstName,
+          lastName: lastName
+        }),
+        credentials: "include"
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        // Store tokens and user data
+        localStorage.setItem("accessToken", data.tokens.access);
+        localStorage.setItem("refreshToken", data.tokens.refresh);
+
+        const userData = {
+          ...data.user,
+          first_name: data.user.first_name,
+          firstName: data.user.first_name,
+          last_name: data.user.last_name,
+          lastName: data.user.last_name,
         };
 
-        localStorage.setItem("tempUserData", JSON.stringify(tempUserData));
-        // You might want to redirect to a profile completion page
-        navigate("/complete-profile");
+        localStorage.setItem("user", JSON.stringify(userData));
+        window.dispatchEvent(new Event('auth-change'));
+
+        setMessage("Sign up successful!");
+        setTimeout(() => navigate("/"), 1500);
+      } else {
+        setMessage(data.message || "Failed to create account");
       }
     } catch (error) {
       console.error("Google Sign-Up Error:", error);

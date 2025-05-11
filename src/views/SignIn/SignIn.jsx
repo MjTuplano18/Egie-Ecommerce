@@ -38,8 +38,9 @@ const SignIn = () => {
       if (response.ok) {
         setMessage(data.message);
         
-        // Store auth token and user data
-        localStorage.setItem("authToken", data.token);
+        // Store JWT tokens
+        localStorage.setItem("accessToken", data.tokens.access);
+        localStorage.setItem("refreshToken", data.tokens.refresh);
 
         // Store user data with consistent profile picture handling
         const userData = {
@@ -75,21 +76,39 @@ const SignIn = () => {
       const result = await signInWithPopup(auth, googleProvider);
       const user = result.user;
 
-      // Create a user object with consistent structure
-      const userData = {
-        id: user.uid,
-        username: user.displayName || user.email.split('@')[0],
-        email: user.email,
-        first_name: user.displayName ? user.displayName.split(' ')[0] : '',
-        last_name: user.displayName ? user.displayName.split(' ').slice(1).join(' ') : '',
-        profilePicture: user.photoURL
-      };
+      // Call backend signin with Firebase UID
+      const response = await fetch("http://127.0.0.1:8000/api/signin/", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          email: user.email,
+          firebaseUid: user.uid
+        }),
+        credentials: "include",
+      });
 
-      localStorage.setItem("authToken", user.accessToken);
-      localStorage.setItem("user", JSON.stringify(userData));
+      const data = await response.json();
 
-      // Dispatch a custom event to notify other components about login
-      window.dispatchEvent(new Event('auth-change'));
+      if (response.ok) {
+        // Store JWT tokens and user data
+        localStorage.setItem("accessToken", data.tokens.access);
+        localStorage.setItem("refreshToken", data.tokens.refresh);
+
+        // Store user data with consistent naming and profile info
+        const userData = {
+          ...data.user,
+          profile_picture: data.user.profile_picture,
+          profilePicture: data.user.profile_picture,
+          first_name: data.user.first_name || user.displayName?.split(' ')[0] || '',
+          firstName: data.user.first_name || user.displayName?.split(' ')[0] || '',
+          last_name: data.user.last_name || user.displayName?.split(' ').slice(1).join(' ') || '',
+          lastName: data.user.last_name || user.displayName?.split(' ').slice(1).join(' ') || ''
+        };
+
+        localStorage.setItem("user", JSON.stringify(userData));
+        window.dispatchEvent(new Event('auth-change'));
 
         setMessage("Google Sign-In Successful!");
         setTimeout(() => navigate("/"), 1500);

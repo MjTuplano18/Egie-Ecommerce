@@ -53,11 +53,12 @@ class Notification(models.Model):
 
 class Wishlist(models.Model):
     user = models.ForeignKey(Customer, on_delete=models.CASCADE, related_name='wishlist')
-    product = models.ForeignKey('products.Product', on_delete=models.CASCADE, related_name='wishlisted_by')
+    # product = models.ForeignKey('products.Product', on_delete=models.CASCADE, related_name='wishlisted_by')
+    product_id = models.IntegerField()
     added_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
-        unique_together = ('user', 'product')
+        unique_together = ('user', 'product_id')  # Changed from 'product' to 'product_id'
 
     def __str__(self):
-        return f"{self.user.username} - {self.product.name}"
+        return f"{self.user.username} - Product ID: {self.product_id}"  # Changed from product.name to product_id

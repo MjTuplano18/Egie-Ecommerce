@@ -9,11 +9,7 @@ export const AuthProvider = ({ children }) => {
     // Check if the user has valid tokens
     const accessToken = localStorage.getItem("accessToken");
     const refreshToken = localStorage.getItem("refreshToken");
-<<<<<<< HEAD
-
-=======
     
->>>>>>> 3d30cb78a0d4d3c096a0c7a21b2f71090cd2af5e
     if (accessToken && refreshToken) {
       setIsAuth(true);
     }

@@ -5,6 +5,7 @@ import { Link } from 'react-router-dom';
 import { userService } from '../../services/api';
 
 const ProfileSettings = () => {
+  // State for local form data (camelCase for frontend)
   const [userData, setUserData] = useState({
     firstName: '',
     lastName: '',
@@ -24,14 +25,107 @@ const ProfileSettings = () => {
 
   const [isLoading, setIsLoading] = useState(false);
   const [isSaved, setIsSaved] = useState(false);
+  const [selectedFile, setSelectedFile] = useState(null);
 
+  // Fetch user data from API or fallback to localStorage
   useEffect(() => {
-    // Fetch user data from localStorage or API
-    const storedUserData = JSON.parse(localStorage.getItem('user')) || {};
-    setUserData(prevData => ({
-      ...prevData,
-      ...storedUserData
-    }));
+    const fetchUserData = async () => {
+      try {
+        setIsLoading(true);
+        
+        console.log('Fetching profile data from API...');
+        // Try to fetch profile from API
+        const profileData = await userService.getProfile();
+        console.log('Received profile data:', profileData);
+        
+        if (profileData) {
+          // Convert snake_case API response to camelCase for frontend
+          const mappedProfileData = {
+            firstName: profileData.first_name || '',
+            lastName: profileData.last_name || '',
+            email: profileData.email || '',
+            birthDate: profileData.birth_date || '',
+            phoneNumber: profileData.phone_number || '',
+            profilePicture: profileData.profile_picture || null,
+          };
+          
+          console.log('Mapped profile data:', mappedProfileData);
+          
+          setUserData(prevData => ({
+            ...prevData,
+            ...mappedProfileData
+          }));
+        }
+        
+        console.log('Fetching address data from API...');
+        // Try to fetch address from API
+        const addressData = await userService.getAddress();
+        console.log('Received address data:', addressData);
+        
+        if (addressData && Object.keys(addressData).length > 0) {
+          const mappedAddressData = {
+            address: {
+              addressLine: addressData.address_line || '',
+              city: addressData.city || '',
+              province: addressData.province || '',
+              postalCode: addressData.postal_code || '',
+              country: addressData.country || 'Philippines',
+              addressType: addressData.address_type || 'shipping',
+            }
+          };
+          
+          console.log('Mapped address data:', mappedAddressData);
+          
+          setUserData(prevData => ({
+            ...prevData,
+            ...mappedAddressData
+          }));
+        }
+      } catch (error) {
+        console.error('Error fetching user data:', error);
+        toast.error('Failed to load profile data. Using local data instead.');
+        
+        // Fallback to localStorage
+        try {
+          console.log('Falling back to localStorage data');
+          const storedUserData = JSON.parse(localStorage.getItem('user')) || {};
+          console.log('Retrieved localStorage data:', storedUserData);
+          
+          setUserData(prevData => ({
+            ...prevData,
+            ...storedUserData
+          }));
+        } catch (localStorageError) {
+          console.error('Error reading from localStorage:', localStorageError);
+        }
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchUserData();
+  }, []);
+
+  // Check for auth tokens on component load 
+  useEffect(() => {
+    // Debug auth tokens
+    const accessToken = localStorage.getItem('accessToken');
+    const authToken = localStorage.getItem('authToken');
+    const refreshToken = localStorage.getItem('refreshToken');
+    
+    console.log('Available auth tokens:', { 
+      accessToken: accessToken ? 'exists' : 'missing', 
+      authToken: authToken ? 'exists' : 'missing',
+      refreshToken: refreshToken ? 'exists' : 'missing',
+      accessTokenLength: accessToken?.length,
+      authTokenLength: authToken?.length,
+      refreshTokenLength: refreshToken?.length
+    });
+    
+    if (!accessToken && !authToken) {
+      console.warn('No authentication tokens found in localStorage');
+      toast.warning('You may need to log in again to update your profile.');
+    }
   }, []);
 
   const handleInputChange = (e) => {
@@ -75,42 +169,117 @@ const ProfileSettings = () => {
     }
   };
 
-  const uploadProfilePicture = async (userId) => {
-    if (!selectedFile) return null;
-
-    try {
-      const formData = new FormData();
-      formData.append('profile_picture', selectedFile);
-
-      const response = await userService.uploadProfilePicture(userId, formData);
-      return response.profile_picture_url;
-    } catch (error) {
-      console.error('Error uploading profile picture:', error);
-      throw error;
-    }
-  };
-
   const handleSubmit = async (e) => {
     e.preventDefault();
     setIsLoading(true);
+    setIsSaved(false);
+    
+    // Track success of each operation
+    let profileSuccess = false;
+    let addressSuccess = false;
 
+    // Display the current data being submitted
+    console.log('Current userData state for submission:', userData);
+
+    // Update user profile
     try {
-      // Here you would typically send the updated data to your backend
-      // For now, we'll just update localStorage
-      localStorage.setItem('user', JSON.stringify(userData));
+      console.log('Preparing profile data for backend...');
       
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 800));
+      // Create form data for the backend (camelCase to snake_case)
+      const formData = new FormData();
+      formData.append('first_name', userData.firstName || '');
+      formData.append('last_name', userData.lastName || '');
+      formData.append('phone_number', userData.phoneNumber || '');
+      formData.append('birth_date', userData.birthDate || '');
       
+      console.log('Form data values:', {
+        first_name: userData.firstName || '',
+        last_name: userData.lastName || '',
+        phone_number: userData.phoneNumber || '',
+        birth_date: userData.birthDate || '',
+      });
+      
+      // Add profile picture if selected
+      if (selectedFile) {
+        console.log('Adding profile picture to form data', selectedFile.name);
+        formData.append('profile_picture', selectedFile);
+      }
+      
+      // Send profile update request
+      console.log('Sending profile update request...');
+      const profileResponse = await userService.updateProfile(formData);
+      console.log('Profile update response:', profileResponse);
+      profileSuccess = true;
+      
+      // Update localStorage with profile data
+      const currentUser = JSON.parse(localStorage.getItem('user') || '{}');
+      const updatedUser = {
+        ...currentUser,
+        firstName: userData.firstName,
+        lastName: userData.lastName,
+        phoneNumber: userData.phoneNumber,
+        birthDate: userData.birthDate,
+        profilePicture: profileResponse.user?.profile_picture || userData.profilePicture
+      };
+      console.log('Updating localStorage with user data:', updatedUser);
+      localStorage.setItem('user', JSON.stringify(updatedUser));
+      
+    } catch (profileError) {
+      console.error('Error updating profile:', profileError);
+      toast.error(`Profile update failed: ${profileError.message}`);
+    }
+    
+    // Update address separately
+    try {
+      // Convert address fields from camelCase to snake_case
+      console.log('Preparing address data for backend...');
+      const addressData = {
+        address_line: userData.address.addressLine || '',
+        city: userData.address.city || '',
+        province: userData.address.province || '',
+        postal_code: userData.address.postalCode || '',
+        country: userData.address.country || 'Philippines',
+        address_type: userData.address.addressType || 'shipping'
+      };
+      console.log('Address data prepared:', addressData);
+      
+      // Send address update request
+      console.log('Sending address update request...');
+      const addressResponse = await userService.updateAddress(addressData);
+      console.log('Address update response:', addressResponse);
+      addressSuccess = true;
+      
+      // Update localStorage with address data
+      const currentUser = JSON.parse(localStorage.getItem('user') || '{}');
+      const updatedUser = {
+        ...currentUser,
+        address: userData.address
+      };
+      console.log('Updating localStorage with address data:', updatedUser);
+      localStorage.setItem('user', JSON.stringify(updatedUser));
+      
+    } catch (addressError) {
+      console.error('Error updating address:', addressError);
+      toast.error(`Address update failed: ${addressError.message}`);
+    }
+    
+    // Show appropriate success message
+    if (profileSuccess && addressSuccess) {
       setIsSaved(true);
       setSelectedFile(null);
-      toast.success('Profile updated successfully!');
-    } catch (error) {
-      console.error('Error updating profile:', error);
-      toast.error('Failed to update profile. Please try again.');
-    } finally {
-      setIsLoading(false);
+      toast.success('Profile and address updated successfully!');
+    } else if (profileSuccess) {
+      setIsSaved(true);
+      setSelectedFile(null);
+      toast.success('Profile updated successfully, but address update failed.');
+    } else if (addressSuccess) {
+      setIsSaved(true);
+      toast.success('Address updated successfully, but profile update failed.');
+    } else {
+      toast.error('Failed to update both profile and address. Please try again.');
     }
+    
+    setIsLoading(false);
   };
 
   return (
@@ -304,14 +473,7 @@ const ProfileSettings = () => {
         </div>
 
         {/* Save and Cancel Buttons */}
-        <div className="flex justify-end space-x-4">
-          <Link
-            to="/"
-            className="px-6 py-3 bg-gray-300 text-gray-700 font-medium rounded-md hover:bg-gray-400 transition duration-300"
-          >
-            Cancel
-          </Link>
-
+        <div className="flex justify-end">
           <button
             type="submit"
             disabled={isLoading}
