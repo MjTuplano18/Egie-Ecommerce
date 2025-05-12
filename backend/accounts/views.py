@@ -318,8 +318,16 @@ def update_profile(request):
         if 'birth_date' in request.data:
             user.birth_date = request.data.get('birth_date')
 
-        # Handle profile picture upload
-        if 'profile_picture' in request.FILES:
+        # Handle Firebase profile picture URL if provided
+        if 'profile_picture_url' in request.data:
+            firebase_url = request.data.get('profile_picture_url')
+            if firebase_url:
+                # Store the Firebase URL directly in the profile_picture field
+                user.profile_picture = firebase_url
+                print(f"Saving Firebase URL to user profile: {firebase_url}")
+
+        # Handle profile picture upload if no Firebase URL was provided
+        elif 'profile_picture' in request.FILES:
             profile_pic = request.FILES['profile_picture']
 
             # Create directory if it doesn't exist
@@ -353,7 +361,11 @@ def update_profile(request):
         }
 
         if user.profile_picture:
-            response_data['profile_picture'] = request.build_absolute_uri(settings.MEDIA_URL + user.profile_picture)
+            # Check if it's a Firebase URL or a local file path
+            if user.profile_picture.startswith('http'):
+                response_data['profile_picture'] = user.profile_picture
+            else:
+                response_data['profile_picture'] = request.build_absolute_uri(settings.MEDIA_URL + user.profile_picture)
 
         return Response({
             'message': 'Profile updated successfully',
@@ -437,7 +449,11 @@ def get_profile(request):
         }
 
         if user.profile_picture:
-            response_data['profile_picture'] = request.build_absolute_uri(settings.MEDIA_URL + user.profile_picture)
+            # Check if it's a Firebase URL or a local file path
+            if user.profile_picture.startswith('http'):
+                response_data['profile_picture'] = user.profile_picture
+            else:
+                response_data['profile_picture'] = request.build_absolute_uri(settings.MEDIA_URL + user.profile_picture)
         else:
             response_data['profile_picture'] = None
 

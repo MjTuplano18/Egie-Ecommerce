@@ -3,6 +3,7 @@ import { FaUser, FaCheck, FaArrowLeft, FaCamera } from 'react-icons/fa';
 import { toast } from 'sonner';
 import { Link } from 'react-router-dom';
 import { userService } from '../../services/api';
+import { auth } from '../../firebase';
 
 const ProfileSettings = () => {
   // State for local form data (camelCase for frontend)
@@ -26,6 +27,22 @@ const ProfileSettings = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [isSaved, setIsSaved] = useState(false);
   const [selectedFile, setSelectedFile] = useState(null);
+  const [userId, setUserId] = useState(null);
+
+  // Get current Firebase user ID
+  useEffect(() => {
+    const unsubscribe = auth.onAuthStateChanged(user => {
+      if (user) {
+        console.log('Current Firebase user:', user.uid);
+        setUserId(user.uid);
+      } else {
+        console.log('No user is signed in');
+        setUserId(null);
+      }
+    });
+
+    return () => unsubscribe();
+  }, []);
 
   // Fetch user data from API or fallback to localStorage
   useEffect(() => {
@@ -83,7 +100,10 @@ const ProfileSettings = () => {
         }
       } catch (error) {
         console.error('Error fetching user data:', error);
-        toast.error('Failed to load profile data. Using local data instead.');
+        toast.error('Failed to load profile data', {
+          description: 'Using locally stored data instead. Some information may not be up to date.',
+          duration: 4000
+        });
         
         // Fallback to localStorage
         try {
@@ -124,7 +144,11 @@ const ProfileSettings = () => {
     
     if (!accessToken && !authToken) {
       console.warn('No authentication tokens found in localStorage');
-      toast.warning('You may need to log in again to update your profile.');
+      toast.warning('Authentication issue detected', {
+        description: 'You may need to log in again to update your profile.',
+        duration: 5000,
+        icon: '⚠️'
+      });
     }
   }, []);
 
@@ -160,9 +184,9 @@ const ProfileSettings = () => {
       reader.onloadend = () => {
         setUserData(prevData => ({
           ...prevData,
-          profilePicture: file // Store the file object for upload
+          profilePicture: reader.result // Store base64 for preview only
         }));
-        setSelectedFile(file);
+        setSelectedFile(file); // Store the actual file for upload
         setIsSaved(false);
       };
       reader.readAsDataURL(file);
@@ -177,8 +201,8 @@ const ProfileSettings = () => {
     // Track success of each operation
     let profileSuccess = false;
     let addressSuccess = false;
-
-    // Display the current data being submitted
+    
+    // Skip Firebase upload and use direct upload to the backend
     console.log('Current userData state for submission:', userData);
 
     // Update user profile
@@ -192,18 +216,19 @@ const ProfileSettings = () => {
       formData.append('phone_number', userData.phoneNumber || '');
       formData.append('birth_date', userData.birthDate || '');
       
+      // If a file is selected, append it directly to the form data
+      if (selectedFile) {
+        console.log('Appending profile picture to form data:', selectedFile.name, selectedFile.type, selectedFile.size);
+        formData.append('profile_picture', selectedFile);
+      }
+      
       console.log('Form data values:', {
         first_name: userData.firstName || '',
         last_name: userData.lastName || '',
         phone_number: userData.phoneNumber || '',
         birth_date: userData.birthDate || '',
+        profile_picture: selectedFile ? selectedFile.name : 'No file selected'
       });
-      
-      // Add profile picture if selected
-      if (selectedFile) {
-        console.log('Adding profile picture to form data', selectedFile.name);
-        formData.append('profile_picture', selectedFile);
-      }
       
       // Send profile update request
       console.log('Sending profile update request...');
@@ -224,9 +249,21 @@ const ProfileSettings = () => {
       console.log('Updating localStorage with user data:', updatedUser);
       localStorage.setItem('user', JSON.stringify(updatedUser));
       
+      // Update the profile picture in the UI if it was returned by the backend
+      if (profileResponse.user?.profile_picture) {
+        setUserData(prevData => ({
+          ...prevData,
+          profilePicture: profileResponse.user.profile_picture
+        }));
+      }
+      
     } catch (profileError) {
       console.error('Error updating profile:', profileError);
-      toast.error(`Profile update failed: ${profileError.message}`);
+      toast.error('Profile update failed', {
+        description: profileError.message || 'Please check your network connection and try again.',
+        duration: 4000,
+        icon: '❌'
+      });
     }
     
     // Update address separately
@@ -260,23 +297,38 @@ const ProfileSettings = () => {
       
     } catch (addressError) {
       console.error('Error updating address:', addressError);
-      toast.error(`Address update failed: ${addressError.message}`);
+      toast.error('Address update failed', {
+        description: addressError.message || 'Please verify your address information and try again.',
+        duration: 4000,
+        icon: '❌'
+      });
     }
     
     // Show appropriate success message
     if (profileSuccess && addressSuccess) {
       setIsSaved(true);
       setSelectedFile(null);
-      toast.success('Profile and address updated successfully!');
+      toast.success('Update changes successfully!', {
+        duration: 3000,
+        icon: '✅'
+      });
     } else if (profileSuccess) {
       setIsSaved(true);
       setSelectedFile(null);
-      toast.success('Profile updated successfully, but address update failed.');
+      toast.warning('Profile updated successfully, but address update failed.', {
+        duration: 3000
+      });
     } else if (addressSuccess) {
       setIsSaved(true);
-      toast.success('Address updated successfully, but profile update failed.');
+      toast.warning('Address updated successfully, but profile update failed.', {
+        duration: 3000
+      });
     } else {
-      toast.error('Failed to update both profile and address. Please try again.');
+      toast.error('Failed to update your profile. Please try again later.', {
+        duration: 4000,
+        icon: '❌',
+        description: 'There was a problem connecting to the server.'
+      });
     }
     
     setIsLoading(false);
