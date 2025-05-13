@@ -61,10 +61,10 @@ const Navbar = ({isAuth}) => {
   const [searchQuery, setSearchQuery] = useState("");
   // Add a new state for dropdown visibility
   const [dropdownOpen, setDropdownOpen] = useState(false);
-  
+
   // Add a ref for the dropdown menu
   const dropdownRef = useRef(null);
-  
+
   // Add a click outside handler
   useEffect(() => {
     function handleClickOutside(event) {
@@ -72,7 +72,7 @@ const Navbar = ({isAuth}) => {
         setDropdownOpen(false);
       }
     }
-    
+
     document.addEventListener("mousedown", handleClickOutside);
     return () => {
       document.removeEventListener("mousedown", handleClickOutside);
@@ -130,7 +130,7 @@ const Navbar = ({isAuth}) => {
   const handleSignOut = () => {
     // Close dropdown
     setDropdownOpen(false);
-    
+
     // Clear user session data and tokens
     localStorage.removeItem('accessToken');
     localStorage.removeItem('refreshToken');
@@ -294,20 +294,20 @@ const Navbar = ({isAuth}) => {
                     </div>
                   </li>
                   <li>
-                    <a
-                      href="#"
+                    <Link
+                      to="/buildpc"
                       className="block py-2 px-3 text-gray-900 hover:bg-gray-100 md:hover:bg-transparent md:hover:text-blue-700 md:p-0 md:bg-[#F3F7F6]"
                     >
                       PC Build
-                    </a>
+                    </Link>
                   </li>
-                  <li>
-                    <a
-                      href="#"
+                   <li>
+                    <Link
+                      to="/contactus"
                       className="block py-2 px-3 text-gray-900 hover:bg-gray-100 md:hover:bg-transparent md:hover:text-blue-700 md:p-0 md:bg-[#F3F7F6]"
                     >
                       Contact Us
-                    </a>
+                    </Link>
                   </li>
                 </ul>
               </div>

@@ -15,9 +15,12 @@ import ForgotPassword from "./views/ForgotPassword/ForgotPassword";
 import ResetPassword from "./views/ResetPassword/ResetPassword";
 import ProfileSettings from './views/Profile/ProfileSettings';
 import Settings from './views/Settings/Settings';
-
-
-
+import ScrollToTop from './views/Components/ScrollToTop/ScrollToTop';
+import SystemBuild from './views/SystemBuild/SystemBuild';
+import ContactUs from './views/ContactUs/ContactUs';
+import Notification from './views/Notifications/Notification';
+import Purchases from './views/Purchases/Purchases';
+import OrderDetails from './views/Purchases/Purchase Components/OrderDetails';
 
 
 import { Toaster } from "sonner";
@@ -43,12 +46,13 @@ const Main = () => {
   return (
     <>
       <Navbar isAuth={isAuthPage} />
+      <ScrollToTop />
       <Routes>
         <Route path="/" element={<Landing />} />
         <Route path="/auth" element={<SignUp />} />
         <Route path="/signin" element={<SignIn />} />
         <Route path="/products" element={<Products />} />
-        <Route path="/products/details/:id" element={<ProductDetails  />} />
+        <Route path="/products/details/:id" element={<ProductDetails />} />
         <Route path="/cart" element={<Cart />} />
         <Route path="/checkout" element={<Checkout />} />
         <Route path="/thankyou" element={<ThankYou />} />
@@ -57,14 +61,12 @@ const Main = () => {
         <Route path="/verify-email" element={<VerifyEmail />} />
         <Route path="/profile/settings" element={<ProfileSettings />} />
         <Route path="/settings" element={<Settings />} />
-
-
-
-
-
-
-
         {/* Add more routes as needed */}
+        <Route path="/buildpc" element={<SystemBuild />} />
+        <Route path="/contactus" element={<ContactUs />} />
+        <Route path="/notification" element={<Notification />} />
+        <Route path="/purchases" element={<Purchases />} />
+        <Route path="/purchases/details/:id" element={<OrderDetails />} />
       </Routes>
       <Footer isAuth={isAuthPage} />
       <Toaster richColors position="bottom-right" />
