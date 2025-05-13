@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React from "react";
 import { FaTrash } from "react-icons/fa";
 import { Link } from "react-router-dom";
 import {
@@ -7,48 +7,21 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { useCart } from "@/contexts/CartContext";
 
-const CartItems = ({ cartItems, setCartItems }) => {
-
-
-  const updateQuantity = (id, delta) => {
-    setCartItems((prev) =>
-      prev.map((item) =>
-        item.id === id
-          ? {
-              ...item,
-              quantity: Math.max(item.quantity + delta, 1),
-            }
-          : item
-      )
-    );
-  };
-
-  const toggleSelect = (id) => {
-    setCartItems((prev) =>
-      prev.map((item) =>
-        item.id === id ? { ...item, selected: !item.selected } : item
-      )
-    );
-  };
-
-  const toggleSelectAll = (checked) => {
-    setCartItems((prev) =>
-      prev.map((item) => ({ ...item, selected: checked }))
-    );
-  };
-
-  const clearCart = () => setCartItems([]);
+const CartItems = () => {
+  const { 
+    cartItems,
+    updateQuantity,
+    removeFromCart,
+    clearCart,
+    toggleSelectItem,
+    toggleSelectAll,
+    getSelectedTotal
+  } = useCart();
 
   const selectedItems = cartItems.filter((item) => item.selected);
-  const total = selectedItems.reduce(
-    (sum, item) => sum + item.price * item.quantity,
-    0
-  );
-
-  const removeItem = (id) => {
-    setCartItems((prev) => prev.filter((item) => item.id !== id));
-  };
+  const total = getSelectedTotal();
 
   const allSelected =
     cartItems.length > 0 && selectedItems.length === cartItems.length;
@@ -61,10 +34,9 @@ const CartItems = ({ cartItems, setCartItems }) => {
       <div className="mb-2">
         <label className="flex items-center gap-2">
           <input
-            type="checkbox"
-            checked={allSelected}
+            type="checkbox"            checked={allSelected}
             onChange={(e) => toggleSelectAll(e.target.checked)}
-            className="mr-2 w-4 h-4 rounded transition duration-200 ease-in-out accent-green-600"
+            className="mr-2 w-5 h-5 rounded transition duration-200 ease-in-out accent-green-500 border-2 border-green-500 checked:bg-green-500 checked:border-green-500"
           />
           <span className="text-sm">Select All</span>
         </label>
@@ -84,12 +56,10 @@ const CartItems = ({ cartItems, setCartItems }) => {
         <tbody>
           {cartItems.map((item) => (
             <tr key={item.id} className="border-b">
-              <td className="py-2">
-                <input
-                  type="checkbox"
-                  checked={item.selected}
-                  onChange={() => toggleSelect(item.id)}
-                  className="mr-2 w-4 h-4 rounded transition duration-200 ease-in-out accent-green-600"
+              <td className="py-2">                <input
+                  type="checkbox"                  checked={item.selected}
+                  onChange={() => toggleSelectItem(item.id)}
+                  className="mr-2 w-5 h-5 rounded transition duration-200 ease-in-out accent-green-500 border-2 border-green-500 checked:bg-green-500 checked:border-green-500"
                 />
               </td>
               <td className="py-2 flex items-center gap-3">
@@ -124,9 +94,8 @@ const CartItems = ({ cartItems, setCartItems }) => {
               <td className="py-2">
                 <div className="flex items-center justify-center h-full">
                   <TooltipProvider>
-                    <Tooltip>
-                      <TooltipTrigger
-                        onClick={() => removeItem(item.id)}
+                    <Tooltip>                      <TooltipTrigger
+                        onClick={() => removeFromCart(item.id)}
                         className="cursor-pointer"
                       >
                         <FaTrash className="text-red-500 hover:text-red-700 transition" />
@@ -146,15 +115,16 @@ const CartItems = ({ cartItems, setCartItems }) => {
       {/* Total Summary */}
       <div className="mt-4 text-right font-semibold text-lg">
         Selected Total: ₱{total.toLocaleString()}
-      </div>
-
-      {/* Action Buttons */}
-      <div className="flex justify-between mt-4">
-        <button
+      </div>      {/* Action Buttons */}
+      <div className="flex justify-between mt-4">        <button
           onClick={clearCart}
-          className="bg-red-600 text-white px-4 py-2 rounded hover:bg-red-700"
-        >
-          Clear Cart
+          disabled={selectedItems.length === 0}
+          className={`px-4 py-2 rounded ${
+            selectedItems.length === 0 
+              ? 'bg-gray-400 cursor-not-allowed' 
+              : 'bg-red-600 hover:bg-red-700'
+          } text-white`}        >
+          Clear
         </button>
         <Link
           to="/products"

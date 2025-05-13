@@ -1,24 +1,23 @@
-import { Link } from "react-router-dom";
+import React, { useState, useEffect, useRef } from "react";
+import { Link, useNavigate } from "react-router-dom";
 import "slick-carousel/slick/slick.css";
 import "slick-carousel/slick/slick-theme.css";
-
-import React, { useState, useEffect, useRef } from "react";
 import Slider from "react-slick";
-
 import {
   FaArrowLeft,
   FaArrowRight,
   FaFacebook,
   FaFacebookMessenger,
 } from "react-icons/fa";
-
 import { IoBookmark, IoCloseCircleOutline } from "react-icons/io5";
 import { AiFillInstagram } from "react-icons/ai";
 import { FaXTwitter } from "react-icons/fa6";
-
 import { toast } from "sonner";
+import { useCart } from "@/contexts/CartContext";
 
 const ProductModal = ({ product, onClose }) => {
+  const navigate = useNavigate();
+  const { addToCart } = useCart();
   const [currentImage, setCurrentImage] = useState(0);
   const images = [
     "image1.jpg",
@@ -34,6 +33,8 @@ const ProductModal = ({ product, onClose }) => {
   const [nav2, setNav2] = useState(null);
   let sliderRef1 = useRef(null);
   let sliderRef2 = useRef(null);
+  const stock = 1404;
+  const [quantity, setQuantity] = useState(1);
 
   useEffect(() => {
     setNav1(sliderRef1.current);
@@ -58,8 +59,23 @@ const ProductModal = ({ product, onClose }) => {
     </div>
   );
 
-  const stock = 1404;
-  const [quantity, setQuantity] = useState(1);
+  const handleAddToCart = () => {
+    addToCart({
+      id: product.id,
+      name: product.title || product.productName,
+      price: typeof product.price === 'string' ? parseFloat(product.price.replace(/[₱,]/g, '')) : product.price,
+      image: product.image || images[0],
+      quantity: quantity
+    });
+    toast.success("Added to cart!", {
+      description: "Your product has been successfully added."
+    });
+  };
+
+  const handleBuyNow = () => {
+    handleAddToCart();
+    navigate("/cart");
+  };
 
   return (
     <div
@@ -126,8 +142,7 @@ const ProductModal = ({ product, onClose }) => {
           {/* Product Details */}
           <div className="w-full md:w-2/3 bg-white p-4 rounded-lg">
             <h1 className="text-2xl font-semibold mb-2">
-              Intel Core i9-13900KS Special Edition 13th Gen 24-Core 32-Thread
-              Unlocked Desktop Processor
+              {product?.title || "Intel Core i9-13900KS Special Edition"}
             </h1>
 
             <div className="flex justify-between text-sm text-gray-500 mb-4">
@@ -139,7 +154,7 @@ const ProductModal = ({ product, onClose }) => {
 
             <div className="flex flex-row gap-7">
               <div className="text-2xl font-bold text-green-700 mb-4">
-                ₱15,009 - ₱21,741
+                {product?.price || "₱15,009 - ₱21,741"}
               </div>
 
               <div className="flex items-center mb-4 gap-4">
@@ -219,25 +234,19 @@ const ProductModal = ({ product, onClose }) => {
             </Link>
 
             <div className="flex gap-3">
-              <Link
-                to="/wishlist"
-                onClick={(e) => {
-                  e.preventDefault();
-                  toast.success("Added to cart!", {
-                    description: "Your product has been successfully added.",
-                  });
-                }}
+              <button
+                onClick={handleAddToCart}
                 className="flex-1 border bg-green-400 text-black font-medium py-2 rounded hover:bg-green-900 hover:text-white transition text-center"
               >
                 Add To Cart
-              </Link>
+              </button>
               
-              <Link
-                to="/cart"
+              <button
+                onClick={handleBuyNow}
                 className="flex-1 bg-green-400 text-black font-medium py-2 rounded hover:bg-green-900 hover:text-white transition text-center"
               >
                 Buy Now
-              </Link>
+              </button>
             </div>
           </div>
         </div>

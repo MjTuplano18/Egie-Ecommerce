@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from "react";
 import { components } from "../../Data/components";
 import ProductModal from "../../Products/ProductGrid/ProductModal/ProductModal";
+import { useCart } from "@/contexts/CartContext";
+import { toast } from "sonner";
 
 import {
   Select,
@@ -11,17 +13,16 @@ import {
 } from "@/components/ui/select";
 
 const Selected = ({ selectedType, onAddProduct }) => {
+  const { addToCart } = useCart();
   const selectedComponent = components.find((c) => c.type === selectedType);
   const products = selectedComponent ? selectedComponent.products : [];
 
   const [selectedProduct, setSelectedProduct] = useState(null);
   const [selectedBrand, setSelectedBrand] = useState("");
   const [selectedSubCategory, setSelectedSubCategory] = useState("");
-
   const [searchTerm, setSearchTerm] = useState("");
 
-
-  // ⬇️ Reset filters when selectedType changes
+  // Reset filters when selectedType changes
   useEffect(() => {
     setSelectedBrand("");
     setSelectedSubCategory("");
@@ -31,16 +32,24 @@ const Selected = ({ selectedType, onAddProduct }) => {
   const brands = [...new Set(products.map((p) => p.brand))];
   const subCategories = [...new Set(products.map((p) => p.subCategory))];
 
-const filteredProducts = products.filter((p) => {
-  const matchesBrand = selectedBrand === "" || p.brand === selectedBrand;
-  const matchesSub =
-    selectedSubCategory === "" || p.subCategory === selectedSubCategory;
-  const matchesSearch = p.productName
-    .toLowerCase()
-    .includes(searchTerm.toLowerCase());
+  const filteredProducts = products.filter((p) => {
+    const matchesBrand = selectedBrand === "" || p.brand === selectedBrand;
+    const matchesSub =
+      selectedSubCategory === "" || p.subCategory === selectedSubCategory;
+    const matchesSearch = p.productName
+      .toLowerCase()
+      .includes(searchTerm.toLowerCase());
 
-  return matchesBrand && matchesSub && matchesSearch;
-});
+    return matchesBrand && matchesSub && matchesSearch;
+  });
+
+  const handleAdd = (product) => {
+    onAddProduct(selectedType, product);
+    addToCart({ ...product, quantity: 1 });
+    toast.success("Added to cart and build!", {
+      description: `${product.productName} has been added to your cart and build.`,
+    });
+  };
 
   return (
     <div className="p-4 max-w-md border border-gray-300 mx-auto bg-gray-50 h-[500px] overflow-y-auto">
@@ -109,7 +118,7 @@ const filteredProducts = products.filter((p) => {
                     Details
                   </button>
                   <button
-                    onClick={() => onAddProduct(selectedType, product)}
+                    onClick={() => handleAdd(product)}
                     className="cursor-pointer bg-lime-400 text-black text-sm px-3 py-1 rounded hover:bg-lime-500"
                   >
                     Add

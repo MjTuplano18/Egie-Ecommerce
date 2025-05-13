@@ -1,17 +1,18 @@
 import React, { useState } from "react";
 import { components } from "../../Data/components";
 import { FaMinus, FaPlus, FaTrash } from "react-icons/fa";
-
 import { Link } from "react-router-dom";
 import { toast } from "sonner";
+import { useCart } from "@/contexts/CartContext";
 
 const BuildComponents = ({
   selectedType,
   setSelectedType,
   selectedProducts,
-  setSelectedProducts, // <-- Add this prop to allow modification
+  setSelectedProducts,
 }) => {
-  const [quantities, setQuantities] = useState(components.map(() => 0));
+  const { addManyToCart } = useCart();
+  const [quantities, setQuantities] = useState(components.map(() => 1));
 
   const handleDecrease = (index, compType) => {
     if (!selectedProducts[compType]) return;
@@ -28,15 +29,25 @@ const BuildComponents = ({
   };
 
   const handleDelete = (index, compType) => {
-    // Remove product
     setSelectedProducts((prev) => {
       const updated = { ...prev };
       delete updated[compType];
       return updated;
     });
+    setQuantities((prev) => prev.map((qty, i) => (i === index ? 1 : qty)));
+  };
 
-    // Reset quantity
-    setQuantities((prev) => prev.map((qty, i) => (i === index ? 0 : qty)));
+  const getSelectedProductsWithQuantities = () => {
+    return components.reduce((acc, comp, index) => {
+      const selectedProduct = selectedProducts[comp.type];
+      if (selectedProduct && quantities[index] > 0) {
+        acc.push({
+          ...selectedProduct,
+          quantity: quantities[index]
+        });
+      }
+      return acc;
+    }, []);
   };
 
   const subtotal = components.reduce((acc, comp, index) => {
@@ -45,6 +56,22 @@ const BuildComponents = ({
     const total = price * quantities[index];
     return acc + total;
   }, 0);
+
+  const handleAddToCart = () => {
+    const productsToAdd = getSelectedProductsWithQuantities();
+    
+    if (productsToAdd.length === 0) {
+      toast.error("No components selected", {
+        description: "Please add at least one component before adding to cart.",
+      });
+      return;
+    }
+
+    addManyToCart(productsToAdd);
+    toast.success("Added to cart!", {
+      description: "Your products have been successfully added.",
+    });
+  };
 
   return (
     <div className="w-[800px] mb-4">
@@ -89,11 +116,11 @@ const BuildComponents = ({
                         <button
                           onClick={() => handleDecrease(index, comp.type)}
                           className={`cursor-pointer bg-red-500 text-white p-1 rounded-full hover:bg-red-600 ${
-                            !selectedProduct
+                            !selectedProduct || quantities[index] <= 1
                               ? "opacity-50 cursor-not-allowed"
                               : ""
                           }`}
-                          disabled={!selectedProduct}
+                          disabled={!selectedProduct || quantities[index] <= 1}
                         >
                           <FaMinus size={12} />
                         </button>
@@ -133,29 +160,31 @@ const BuildComponents = ({
             <span className="text-sm font-medium">
               Subtotal: ₱{subtotal.toFixed(2)}
             </span>
-            <Link
-              to="/cart"
-              onClick={(e) => {
-                const hasSelection = Object.keys(selectedProducts).length > 0;
-
-                if (!hasSelection) {
-                  e.preventDefault(); // ✅ Prevent navigation only when there's an error
-                  toast.error("No components selected", {
-                    description:
-                      "Please add at least one component before buying.",
-                  });
-                  return;
-                }
-
-                toast.success("Added to cart!", {
-                  description: "Your products have been successfully added.",
-                });
-                // ✅ Do not prevent default if everything is okay — allow navigation
-              }}
-              className="bg-lime-400 text-black px-6 py-2 rounded hover:bg-lime-500 font-semibold"
-            >
-              Buy Now
-            </Link>
+            <div className="flex gap-4">
+              <button
+                onClick={handleAddToCart}
+                className="bg-lime-400 text-black px-6 py-2 rounded hover:bg-lime-500 font-semibold"
+              >
+                Add to Cart
+              </button>
+              <Link
+                to="/checkout"
+                onClick={(e) => {
+                  const hasSelection = Object.keys(selectedProducts).length > 0;
+                  if (!hasSelection) {
+                    e.preventDefault();
+                    toast.error("No components selected", {
+                      description: "Please add at least one component before proceeding to checkout.",
+                    });
+                    return;
+                  }
+                  handleAddToCart();
+                }}
+                className="bg-blue-500 text-white px-6 py-2 rounded hover:bg-blue-600 font-semibold"
+              >
+                Buy Now
+              </Link>
+            </div>
           </div>
         </div>
       </div>

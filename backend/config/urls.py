@@ -49,6 +49,8 @@ urlpatterns = [
     path('admin/', admin.site.urls),
   # This should be the LAST pattern as it might be catching all requests
     path('', include('accounts.urls')),
+    path('api/', include('products.urls')),
+    path('api/', include('orders.urls')),
 ]
 
 if settings.DEBUG:

@@ -1,15 +1,16 @@
 import React, { useState, useEffect, useRef } from "react";
-import {Link} from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 import "../../../../src/index.css";
 import "flowbite";
+import { useCart } from "@/contexts/CartContext";
 import { IoNotifications } from "react-icons/io5";
-import { IoBookmark } from "react-icons/io5";
 import { FaShoppingCart } from "react-icons/fa";
 import { FaSquareFacebook } from "react-icons/fa6";
 import { FaInstagram } from "react-icons/fa6";
 import { FaUser } from "react-icons/fa";
 import { FaCog, FaSignOutAlt, FaShoppingBag, FaChevronDown } from "react-icons/fa";
 import { useNavigate } from "react-router-dom";
+import { FaBookmark } from "react-icons/fa";
 
 const categorizedParts = [
   {
@@ -55,20 +56,30 @@ const categorizedParts = [
 ];
 
 const Navbar = ({isAuth}) => {
+  const { getCartCount } = useCart();
+  const [notificationCount, setNotificationCount] = useState(3); // example
   const [isSignedIn, setIsSignedIn] = useState(isAuth);
   const [userData, setUserData] = useState(null);
   const [theme, setTheme] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
-  // Add a new state for dropdown visibility
   const [dropdownOpen, setDropdownOpen] = useState(false);
-
-  // Add a ref for the dropdown menu
   const dropdownRef = useRef(null);
+  const buttonRef = useRef(null);
 
-  // Add a click outside handler
+  const navigate = useNavigate();
+  const location = useLocation();
+  
+  const isProductsActive = location.pathname.startsWith("/products");
+  const isActive = (path) => location.pathname === path;
+
   useEffect(() => {
     function handleClickOutside(event) {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+      if (
+        dropdownRef.current && 
+        !dropdownRef.current.contains(event.target) && 
+        buttonRef.current && 
+        !buttonRef.current.contains(event.target)
+      ) {
         setDropdownOpen(false);
       }
     }
@@ -77,11 +88,12 @@ const Navbar = ({isAuth}) => {
     return () => {
       document.removeEventListener("mousedown", handleClickOutside);
     };
-  }, [dropdownRef]);
+  }, []);
 
-  const navigate = useNavigate();
+  useEffect(() => {
+    setDropdownOpen(false);
+  }, [location.pathname]);
 
-  // Fetch user data from localStorage on component mount and when auth changes
   useEffect(() => {
     const checkAuthStatus = () => {
       const userDataString = localStorage.getItem('user');
@@ -91,7 +103,6 @@ const Navbar = ({isAuth}) => {
       if (userDataString && accessToken && refreshToken) {
         try {
           const userData = JSON.parse(userDataString);
-          // Handle both profile_picture and profilePicture properties
           if (userData.profile_picture && !userData.profilePicture) {
             userData.profilePicture = userData.profile_picture;
           }
@@ -107,20 +118,16 @@ const Navbar = ({isAuth}) => {
       }
     };
 
-    // Check auth status when component mounts
     checkAuthStatus();
 
-    // Listen for auth change events
     window.addEventListener('auth-change', checkAuthStatus);
 
-    // Add event listener for storage changes (for multi-tab support)
     window.addEventListener('storage', (event) => {
       if (event.key === 'accessToken' || event.key === 'refreshToken' || event.key === 'user') {
         checkAuthStatus();
       }
     });
 
-    // Clean up event listeners
     return () => {
       window.removeEventListener('auth-change', checkAuthStatus);
       window.removeEventListener('storage', checkAuthStatus);
@@ -128,10 +135,8 @@ const Navbar = ({isAuth}) => {
   }, []);
 
   const handleSignOut = () => {
-    // Close dropdown
     setDropdownOpen(false);
 
-    // Clear user session data and tokens
     localStorage.removeItem('accessToken');
     localStorage.removeItem('refreshToken');
     localStorage.removeItem('user');
@@ -139,20 +144,17 @@ const Navbar = ({isAuth}) => {
     setIsSignedIn(false);
     setUserData(null);
 
-    // Dispatch auth change event
     window.dispatchEvent(new Event('auth-change'));
 
-    navigate("/signin"); // Redirect to Sign In page
+    navigate("/signin");
   };
 
   const handleSearch = () => {
     if (searchQuery.trim()) {
-      // Replace this with your actual search logic
       alert(`Searching for: ${searchQuery}`);
     }
   };
 
-  // Get user's display name
   const getUserDisplayName = () => {
     if (!userData) return "User";
 
@@ -172,14 +174,11 @@ const Navbar = ({isAuth}) => {
   return (
     <div className={`navbar ${isAuth ? "auth-navbar" : "main-navbar"}`}>
       {isAuth ? (
-        <div className="auth-header ">
-
-        </div>
+        <div className="auth-header "></div>
       ) : (
         <div className="main-header">
-          <nav className="bg-[#F3F7F6] border-gray-200 ">
-            {/* UPPER NAVBAR */}
-            <div className="hidden md:block  bg-[#111] text-white text-sm px-5">
+          <nav className="bg-black border-gray-200 fixed w-full top-0 z-50">
+            <div className="hidden md:block bg-[#111] text-white text-sm px-5">
               <div className="flex flex-row md:flex-row lg:flex-row md:order-1 justify-between items-center">
                 <div className="leading-loose">
                   Mon-Sunday 8:00 AM - 5:30 PM
@@ -201,12 +200,9 @@ const Navbar = ({isAuth}) => {
               </div>
             </div>
 
-            {/* BOTTOM NAVBAR */}
             <div className="max-w-screen-xl flex flex-wrap items-center justify-between mx-auto bg-transparent">
-              {/* LOGO */}
               <Link
                 to="/"
-                href=""
                 className="flex items-center space-x-3 rtl:space-x-reverse"
               >
                 <img
@@ -216,26 +212,46 @@ const Navbar = ({isAuth}) => {
                 />
               </Link>
 
-              {/* MAIN LINKS */}
               <div
-                className="items-center justify-between hidden w-full md:flex md:w-auto md:order-2 sm:order-5 md:bg-[#F3F7F6]"
+                className="items-center justify-between hidden w-full md:flex md:w-auto md:order-2 sm:order-5 bg-black"
                 id="navbar-user"
               >
-                {/* Search bar for mobile */}
                 <div className="relative mt-3 md:hidden">
+                  <div className="absolute inset-y-0 start-0 flex items-center ps-3 pointer-events-none">
+                    <svg
+                      className="w-4 h-4 text-gray-500 dark:text-gray-400"
+                      aria-hidden="true"
+                      xmlns="http://www.w3.org/2000/svg"
+                      fill="none"
+                      viewBox="0 0 20 20"
+                    >
+                      <path
+                        stroke="currentColor"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth="2"
+                        d="m19 19-4-4m0-7A7 7 0 1 1 1 8a7 7 0 0 1 14 0Z"
+                      />
+                    </svg>
+                  </div>
                   <input
                     type="text"
                     id="search-navbar"
                     className="block w-full p-2 ps-10 text-sm text-gray-900 border border-gray-300 rounded-lg bg-gray-50 focus:ring-blue-500 focus:border-blue-500"
                     placeholder="Search..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
                   />
                 </div>
-                <ul className="flex flex-col p-4 md:p-0 mt-4 font-medium border border-gray-100 rounded-lg  md:space-x-8 rtl:space-x-reverse md:flex-row md:mt-0 md:border-0">
+                <ul className="flex flex-col p-4 md:p-0 mt-4 font-medium border border-gray-100 rounded-lg md:space-x-8 rtl:space-x-reverse md:flex-row md:mt-0 md:border-0">
                   <li>
                     <Link
                       to="/"
-                      href="#"
-                      className="block py-2 px-3 bg-blue-700 rounded-sm md:text-[#3e80349b] md:p-0 hover:text-black md:bg-[#F3F7F6]"
+                      className={`block py-2 px-3 rounded-sm md:p-0 ${
+                        isActive("/")
+                          ? "text-blue-400 font-semibold"
+                          : "text-white"
+                      } hover:text-gray-300`}
                       aria-current="page"
                     >
                       Home
@@ -243,68 +259,39 @@ const Navbar = ({isAuth}) => {
                   </li>
 
                   <li>
-                    <button
-                      id="mega-menu-dropdown-button"
-                      data-dropdown-toggle="mega-menu-dropdown"
-                      className="flex items-center justify-between w-full py-2 px-3 font-medium text-gray-900 border-b border-gray-100 md:w-auto hover:bg-gray-50 md:hover:bg-transparent md:border-0 md:hover:text-blue-600 md:p-0 md:bg-[#F3F7F6]"
+                    <Link
+                      to="/products"
+                      className={`block py-2 px-3 rounded-sm md:p-0 ${
+                        isProductsActive
+                          ? "text-blue-400 font-semibold"
+                          : "text-white"
+                      } hover:text-gray-300`}
+                      aria-current="page"
                     >
-                      Products{" "}
-                      <svg
-                        className="w-2.5 h-2.5 ms-3"
-                        aria-hidden="true"
-                        xmlns="http://www.w3.org/2000/svg"
-                        fill="none"
-                        viewBox="0 0 10 6"
-                      >
-                        <path
-                          stroke="currentColor"
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth="2"
-                          d="m1 1 4 4 4-4"
-                        />
-                      </svg>
-                    </button>
-
-                    <div
-                      id="mega-menu-dropdown"
-                      className="absolute z-1000 hidden grid w-auto grid-cols-2 text-sm bg-white border border-gray-100 rounded-lg shadow-md dark:border-gray-700 md:grid-cols-3 dark:bg-gray-700"
-                    >
-                      {categorizedParts.map((section, index) => (
-                        <div
-                          key={index}
-                          className="p-4 text-gray-900 dark:text-white"
-                        >
-                          <h3 className="font-bold mb-2">{section.category}</h3>
-                          <ul className="space-y-2">
-                            {section.items.map((item, idx) => (
-                              <li key={idx}>
-                                <Link
-                                  to="/products"
-                                  href="#"
-                                  className="text-gray-500 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-500"
-                                >
-                                  {item}
-                                </Link>
-                              </li>
-                            ))}
-                          </ul>
-                        </div>
-                      ))}
-                    </div>
+                      All Products
+                    </Link>
                   </li>
+
                   <li>
                     <Link
                       to="/buildpc"
-                      className="block py-2 px-3 text-gray-900 hover:bg-gray-100 md:hover:bg-transparent md:hover:text-blue-700 md:p-0 md:bg-[#F3F7F6]"
+                      className={`block py-2 px-3 rounded-sm md:p-0 ${
+                        isActive("/buildpc")
+                          ? "text-blue-400 font-semibold"
+                          : "text-white"
+                      } hover:text-gray-300`}
                     >
                       PC Build
                     </Link>
                   </li>
-                   <li>
+                  <li>
                     <Link
                       to="/contactus"
-                      className="block py-2 px-3 text-gray-900 hover:bg-gray-100 md:hover:bg-transparent md:hover:text-blue-700 md:p-0 md:bg-[#F3F7F6]"
+                      className={`block py-2 px-3 rounded-sm md:p-0 ${
+                        isActive("/contactus")
+                          ? "text-blue-400 font-semibold"
+                          : "text-white"
+                      } hover:text-gray-300`}
                     >
                       Contact Us
                     </Link>
@@ -312,10 +299,8 @@ const Navbar = ({isAuth}) => {
                 </ul>
               </div>
 
-              {/* RIGHT */}
               <div className="flex flex-wrap items-center justify-between md:order-3 mx-5 ">
                 <div className="flex items-center md:order-2">
-                  {/* Small Screen Search Button */}
                   <button
                     type="button"
                     data-collapse-toggle="navbar-user"
@@ -357,7 +342,6 @@ const Navbar = ({isAuth}) => {
                   </div>
                 </div>
 
-                {/* BUTTONS */}
                 <div
                   className={`flex md:order-3 mx-4 auth-buttons ${
                     isSignedIn ? "signed-in" : "signed-out"
@@ -366,19 +350,41 @@ const Navbar = ({isAuth}) => {
                   {isSignedIn ? (
                     <>
                       <Link
+                        to="/wishlist"
+                        className="relative inline-flex items-center justify-center p-0.5 mb-2 me-2 text-sm font-medium text-gray-900 rounded-lg group bg-gradient-to-br from-teal-300 to-lime-300 group-hover:from-teal-300 group-hover:to-lime-300 "
+                      >
+                        <span className="relative px-5 py-2.5 transition-all ease-in duration-75 bg-white rounded-md group-hover:bg-transparent group-hover:dark:bg-transparent">
+                          <FaBookmark />
+                        </span>
+                      </Link>
+
+                      <Link
                         to="/cart"
-                        className="relative inline-flex items-center justify-center p-0.5 mb-2 me-2 overflow-hidden text-sm font-medium text-gray-900 rounded-lg group bg-gradient-to-br from-teal-300 to-lime-300 group-hover:from-teal-300 group-hover:to-lime-300 "
+                        className="relative inline-flex items-center justify-center p-0.5 mb-2 me-2 text-sm font-medium text-gray-900 rounded-lg group bg-gradient-to-br from-teal-300 to-lime-300 group-hover:from-teal-300 group-hover:to-lime-300 "
                       >
                         <span className="relative px-5 py-2.5 transition-all ease-in duration-75 bg-white rounded-md group-hover:bg-transparent group-hover:dark:bg-transparent">
                           <FaShoppingCart className="cart" />
                         </span>
+                        {getCartCount() > 0 && (
+                          <span className="absolute top-2 right-2 transform translate-x-1/2 -translate-y-1/2 bg-red-600 text-white text-xs font-bold px-1.5 py-0.5 rounded-full">
+                            {getCartCount()}
+                          </span>
+                        )}
                       </Link>
 
-                      <button className="relative inline-flex items-center justify-center p-0.5 mb-2 me-2 overflow-hidden text-sm font-medium text-gray-900 rounded-lg group bg-gradient-to-br from-teal-300 to-lime-300 group-hover:from-teal-300 group-hover:to-lime-300 ">
+                      <Link
+                        to="/notification"
+                        className="relative inline-flex items-center justify-center p-0.5 mb-2 me-2 text-sm font-medium text-gray-900 rounded-lg group bg-gradient-to-br from-teal-300 to-lime-300 group-hover:from-teal-300 group-hover:to-lime-300 "
+                      >
                         <span className="relative px-5 py-2.5 transition-all ease-in duration-75 bg-white rounded-md group-hover:bg-transparent group-hover:dark:bg-transparent">
                           <IoNotifications />
                         </span>
-                      </button>
+                        {notificationCount > 0 && (
+                          <span className="absolute top-2 right-2 transform translate-x-1/2 -translate-y-1/2 bg-red-600 text-white text-xs font-bold px-1.5 py-0.5 rounded-full">
+                            {notificationCount}
+                          </span>
+                        )}
+                      </Link>
                     </>
                   ) : (
                     <>
@@ -403,15 +409,18 @@ const Navbar = ({isAuth}) => {
                   )}
                 </div>
 
-                {/* PROFILE AND HAMBURGER */}
                 <div className="flex items-center md:order-4 space-x-3 md:space-x-0 rtl:space-x-reverse">
                   {isSignedIn && (
                     <button
+                      ref={buttonRef}
                       type="button"
                       className="flex text-sm rounded-full md:me-0 focus:ring-4 focus:ring-gray-300 dark:focus:ring-gray-600"
                       id="user-menu-button"
                       aria-expanded={dropdownOpen}
-                      onClick={() => setDropdownOpen(!dropdownOpen)}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setDropdownOpen(!dropdownOpen);
+                      }}
                     >
                       <span className="sr-only">Open user menu</span>
                       {userData && userData.profilePicture ? (
@@ -428,10 +437,13 @@ const Navbar = ({isAuth}) => {
                     </button>
                   )}
 
-                  {/* Dropdown menu */}
                   <div
                     ref={dropdownRef}
-                    className={`z-50 ${dropdownOpen ? 'block opacity-100 transform translate-y-0' : 'hidden opacity-0 transform -translate-y-2'} absolute top-16 right-0 my-4 text-base list-none bg-white divide-y divide-gray-100 rounded-lg shadow-lg dark:bg-gray-700 dark:divide-gray-600 min-w-[250px] transition-all duration-200 ease-in-out`}
+                    className={`z-50 ${
+                      dropdownOpen 
+                        ? 'block opacity-100 transform translate-y-0' 
+                        : 'hidden opacity-0 transform -translate-y-2'
+                    } absolute top-16 right-0 my-4 text-base list-none bg-white divide-y divide-gray-100 rounded-lg shadow-lg dark:bg-gray-700 dark:divide-gray-600 min-w-[250px] transition-all duration-200 ease-in-out`}
                     id="user-dropdown"
                   >
                     <div className="px-4 py-3">
@@ -478,7 +490,7 @@ const Navbar = ({isAuth}) => {
                       </li>
                       <li>
                         <Link
-                          to="/orders"
+                          to="/purchases"
                           className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 dark:hover:bg-gray-600 dark:text-gray-200 dark:hover:text-white"
                         >
                           <FaShoppingBag className="mr-2 text-gray-500" />

@@ -1,7 +1,6 @@
 import React, { useState } from "react";
-import { useParams } from "react-router-dom";
+import { useParams, Link } from "react-router-dom";
 import purchaseData from "../../Data/purchaseData";
-import { Link } from "react-router-dom";
 import {
   Dialog,
   DialogContent,
@@ -31,127 +30,109 @@ const OrderDetails = () => {
     return <div className="p-6">Order not found.</div>;
   }
 
-  // Static address and payment info
-  const address = {
-    name: "Mik ko",
-    phone: "(+63) 9184549421",
-    address:
-      "Blk 69 LOT 96, Dyan Lang Sa Gedli Ng Kanto, Poblacion, Santa Maria, North Luzon, Bulacan 3022",
-  };
-  const payment = {
-    method: "Cash on Delivery (COD)",
-    delivery: "Standard Shipping",
-  };
-
-  // Calculate order total
-  const orderTotal = order.products.reduce(
-    (sum, product) => sum + Number(product.total.replace(/,/g, "")),
-    0
-  );
-
-  return (
-    <div className=" min-h-screen p-6">
-      <div className="bg-white rounded shadow p-6 max-w-4xl mx-auto">
-        {/* Order Header */}
-        <div className="flex justify-between items-start mb-4">
-          <div>
-            <div className="text-xs text-gray-500">Order ID: {order.id}</div>
+  return (    <div className="min-h-screen bg-gray-50">
+      <div className="max-w-5xl mx-auto p-4 md:p-6">
+        <div className="bg-white shadow-sm rounded-lg overflow-hidden">
+          {/* Order Header */}
+          <div className="p-6">
+            <div className="flex justify-between items-start">
+              <div className="text-sm text-gray-600">
+                Order ID: {id}
+              </div>
+              <div className="text-right">
+                <div className="text-sm text-gray-600">Order Placed</div>
+                <div className="font-medium">May 03, 2025</div>
+              </div>
+            </div>
           </div>
-          <div>
-            <div className="text-xs text-gray-500">Order Placed</div>
-            <div className="font-semibold">May 03, 2025</div>
+
+          <hr />
+
+          {/* Product List */}
+          <div className="p-6">
+            {order.products.map((product, idx) => (
+              <div key={idx} className="flex items-start gap-6 mb-6 last:mb-0">
+                <div className="w-24 h-24 bg-gray-100 rounded-lg flex-shrink-0"></div>
+                <div className="flex-grow">
+                  <h3 className="font-medium text-gray-900 mb-1">{product.title}</h3>
+                  <p className="text-sm text-gray-500">Product details here</p>
+                  <div className="mt-2">x {product.quantity}</div>
+                </div>
+                <div className="text-right">
+                  <p className="text-gray-900">Price: ₱{product.price}</p>
+                </div>
+              </div>
+            ))}
           </div>
-        </div>
-        <hr className="my-4 border-t border-black" />
-        <div className="flex items-center gap-4 flex-wrap flex-col w-full">
-          {order.products.map((product, idx) => (
-            <div
-              key={idx}
-              className="flex justify-between items-center gap-2 mb-2 w-full"
+
+          <div className="bg-gray-50 p-4 border-y">
+            <div className="text-right">
+              <span className="text-lg font-semibold mr-2">Order Total:</span>
+              <span className="text-xl font-bold text-green-600">
+                ₱{order.products.reduce((sum, product) => 
+                  sum + (Number(product.total.replace(/,/g, ""))), 
+                  0
+                ).toLocaleString()}
+              </span>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 p-6">
+            {/* Delivery Address */}
+            <div>
+              <h3 className="font-semibold mb-2">Delivery Address</h3>
+              <div className="text-sm text-gray-600">
+                <div><strong>Name:</strong> Mik ko</div>
+                <div><strong>Phone:</strong> (+63) 9184549421</div>
+                <div>
+                  <strong>Address:</strong> Blk 69 LOT 96, Dyan Lang Sa Gedli Ng Kanto, 
+                  Poblacion, Santa Maria, North Luzon, Bulacan 3022
+                </div>
+              </div>
+            </div>
+
+            {/* Billing Address */}
+            <div>
+              <h3 className="font-semibold mb-2">Billing Address</h3>
+              <div className="text-sm text-gray-600">
+                <div><strong>Name:</strong> Mik ko</div>
+                <div><strong>Phone:</strong> (+63) 9184549421</div>
+                <div>
+                  <strong>Address:</strong> Blk 69 LOT 96, Dyan Lang Sa Gedli Ng Kanto, 
+                  Poblacion, Santa Maria, North Luzon, Bulacan 3022
+                </div>
+              </div>
+            </div>
+
+            {/* Payment Info */}
+            <div>
+              <h3 className="font-semibold mb-2">Payment Method</h3>
+              <div className="text-sm text-gray-600 mb-4">Cash on Delivery (COD)</div>
+              
+              <h3 className="font-semibold mb-2">Delivery Method</h3>
+              <div className="text-sm text-gray-600">Standard Shipping</div>
+            </div>
+          </div>
+
+          {/* Action Buttons */}
+          <div className="border-t p-6 flex justify-end gap-4">
+            <Button
+              onClick={() => setIsCancelOpen(true)}
+              variant="destructive"
+              className="bg-red-500 hover:bg-red-600"
             >
-              <div className="flex items-center gap-2">
-                <div className="w-20 h-20 bg-gray-200 rounded flex items-center justify-center">
-                  {/* <img src={product.image} alt="Product" className="w-20 h-20 object-cover rounded" /> */}
-                </div>
-                <div className="flex flex-col gap-1">
-                  <div className="font-semibold">{product.title}</div>
-                  <div className="text-xs">x {product.quantity}</div>
-                </div>
-              </div>
-
-              <div className="text-xs">Price: ₱{product.price}</div>
-            </div>
-          ))}
-        </div>
-        <hr className="my-4 border-t border-black" />
-        {/* Order Summary */}
-        <div>
-          <div className="text-2xl font-bold mt-2 text-right">
-            Order Total:{" "}
-            <span className="text-green-600">
-              ₱{orderTotal.toLocaleString()}
-            </span>
+              Cancel order
+            </Button>
+            <Link to="/products">
+              <Button className="bg-green-500 hover:bg-green-600 text-white">
+                Continue shopping
+              </Button>
+            </Link>
           </div>
-        </div>
-        <hr className="my-4 border-t border-black" />
-        {/* Details Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-          {/* Delivery Address */}
-          <div>
-            <div className="font-semibold mb-1">Delivery Address</div>
-            <div className="text-xs">
-              <div>
-                <span className="font-bold">Name:</span> {address.name}
-              </div>
-              <div>
-                <span className="font-bold">Phone:</span> {address.phone}
-              </div>
-              <div>
-                <span className="font-bold">Address:</span> {address.address}
-              </div>
-            </div>
-          </div>
-          {/* Billing Address */}
-          <div>
-            <div className="font-semibold mb-1">Billing Address</div>
-            <div className="text-xs">
-              <div>
-                <span className="font-bold">Name:</span> {address.name}
-              </div>
-              <div>
-                <span className="font-bold">Phone:</span> {address.phone}
-              </div>
-              <div>
-                <span className="font-bold">Address:</span> {address.address}
-              </div>
-            </div>
-          </div>
-          {/* Payment Method */}
-          <div>
-            <div className="font-semibold mb-1">Payment Method</div>
-            <div className="text-xs mb-2">{payment.method}</div>
-            <div className="font-semibold mb-1">Delivery Method</div>
-            <div className="text-xs">{payment.delivery}</div>
-          </div>
-        </div>
-
-        {/* Action Buttons */}
-        <div className="flex justify-end gap-4 mt-4">
-          <Button
-            className="cursor-pointer bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600"
-            onClick={() => setIsCancelOpen(true)}
-          >
-            Cancel order
-          </Button>
-          <Link
-            to="/products"
-            className="cursor-pointer bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600"
-          >
-            Continue shopping
-          </Link>
         </div>
       </div>
 
+      {/* Cancel Order Dialog */}
       <Dialog open={isCancelOpen} onOpenChange={setIsCancelOpen}>
         <DialogContent className="sm:max-w-[500px]">
           <DialogHeader>
@@ -181,18 +162,16 @@ const OrderDetails = () => {
                 setIsCancelOpen(false);
                 setSelectedCancelReason("");
               }}
-              className="cursor-pointer"
             >
               Not Now
             </Button>
             <Button
               onClick={() => {
-                // Here you would update the order status in your state or backend
                 setIsCancelOpen(false);
                 setSelectedCancelReason("");
               }}
               disabled={!selectedCancelReason}
-              className="bg-red-500 text-white hover:bg-red-600 cursor-pointer"
+              className="bg-red-500 text-white hover:bg-red-600"
             >
               Cancel Order
             </Button>

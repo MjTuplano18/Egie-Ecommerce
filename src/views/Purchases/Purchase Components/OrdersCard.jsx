@@ -40,6 +40,7 @@ const OrderCard = ({
   });
   const [isCancelOpen, setIsCancelOpen] = useState(false);
   const [selectedCancelReason, setSelectedCancelReason] = useState("");
+  const [currentStatus, setCurrentStatus] = useState(status);
 
   const cancelReasons = [
     "I ordered by mistake",
@@ -81,6 +82,7 @@ const OrderCard = ({
       case "Order Received":
         // Update order status to Completed
         onStatusChange("Completed");
+        setCurrentStatus("Completed");
         break;
       default:
         break;
@@ -90,14 +92,18 @@ const OrderCard = ({
   return (
     <div className="border-b p-4 md:p-6 bg-white rounded-lg shadow-sm">
       {/* Header */}
-      <div className="flex justify-between text-xs text-green-600 font-semibold mb-2">
-        <div className="flex items-center gap-2 text-xs text-green-600 font-semibold">
-          <div>{status.toUpperCase()}</div>
+      <div className="flex justify-between text-xs mb-2">
+        <div className="flex items-center gap-2 text-xs font-semibold">
+          <div className={currentStatus === "Cancelled" ? "text-red-600" : "text-green-600"}>
+            {currentStatus.toUpperCase()}
+          </div>
 
           {/* Divider */}
-          <div className="w-px h-3 bg-green-600" />
+          <div className={`w-px h-3 ${currentStatus === "Cancelled" ? "bg-red-600" : "bg-green-600"}`} />
 
-          <div>{subStatus}</div>
+          <div className={currentStatus === "Cancelled" ? "text-red-600" : "text-green-600"}>
+            {subStatus}
+          </div>
         </div>
 
         <Link
@@ -139,11 +145,11 @@ const OrderCard = ({
       {/* Total */}
       <div className="flex justify-between items-center text-sm mb-3">
         {/* Optional Note or Cancelation Reason */}
-        {status === "Cancelled" && cancelReason ? (
+        {currentStatus === "Cancelled" && cancelReason ? (
           <p className="text-xs text-gray-500 text-right">
             Cancelation Reason: {cancelReason}
           </p>
-        ) : status !== "Completed" && note ? (
+        ) : currentStatus !== "Completed" && note ? (
           <div className="text-xs text-gray-500 mb-2">{note}</div>
         ) : (
           <div></div>
@@ -264,6 +270,7 @@ const OrderCard = ({
               onClick={() => {
                 // Change order status to Cancelled and store reason
                 onStatusChange("Cancelled", selectedCancelReason);
+                setCurrentStatus("Cancelled");
                 setIsCancelOpen(false);
                 setSelectedCancelReason("");
               }}

@@ -49,12 +49,12 @@ const ProfileSettings = () => {
     const fetchUserData = async () => {
       try {
         setIsLoading(true);
-        
+
         console.log('Fetching profile data from API...');
         // Try to fetch profile from API
         const profileData = await userService.getProfile();
         console.log('Received profile data:', profileData);
-        
+
         if (profileData) {
           // Convert snake_case API response to camelCase for frontend
           const mappedProfileData = {
@@ -65,20 +65,20 @@ const ProfileSettings = () => {
             phoneNumber: profileData.phone_number || '',
             profilePicture: profileData.profile_picture || null,
           };
-          
+
           console.log('Mapped profile data:', mappedProfileData);
-          
+
           setUserData(prevData => ({
             ...prevData,
             ...mappedProfileData
           }));
         }
-        
+
         console.log('Fetching address data from API...');
         // Try to fetch address from API
         const addressData = await userService.getAddress();
         console.log('Received address data:', addressData);
-        
+
         if (addressData && Object.keys(addressData).length > 0) {
           const mappedAddressData = {
             address: {
@@ -90,9 +90,9 @@ const ProfileSettings = () => {
               addressType: addressData.address_type || 'shipping',
             }
           };
-          
+
           console.log('Mapped address data:', mappedAddressData);
-          
+
           setUserData(prevData => ({
             ...prevData,
             ...mappedAddressData
@@ -104,13 +104,13 @@ const ProfileSettings = () => {
           description: 'Using locally stored data instead. Some information may not be up to date.',
           duration: 4000
         });
-        
+
         // Fallback to localStorage
         try {
           console.log('Falling back to localStorage data');
           const storedUserData = JSON.parse(localStorage.getItem('user')) || {};
           console.log('Retrieved localStorage data:', storedUserData);
-          
+
           setUserData(prevData => ({
             ...prevData,
             ...storedUserData
@@ -126,22 +126,22 @@ const ProfileSettings = () => {
     fetchUserData();
   }, []);
 
-  // Check for auth tokens on component load 
+  // Check for auth tokens on component load
   useEffect(() => {
     // Debug auth tokens
     const accessToken = localStorage.getItem('accessToken');
     const authToken = localStorage.getItem('authToken');
     const refreshToken = localStorage.getItem('refreshToken');
-    
-    console.log('Available auth tokens:', { 
-      accessToken: accessToken ? 'exists' : 'missing', 
+
+    console.log('Available auth tokens:', {
+      accessToken: accessToken ? 'exists' : 'missing',
       authToken: authToken ? 'exists' : 'missing',
       refreshToken: refreshToken ? 'exists' : 'missing',
       accessTokenLength: accessToken?.length,
       authTokenLength: authToken?.length,
       refreshTokenLength: refreshToken?.length
     });
-    
+
     if (!accessToken && !authToken) {
       console.warn('No authentication tokens found in localStorage');
       toast.warning('Authentication issue detected', {
@@ -201,14 +201,14 @@ const ProfileSettings = () => {
     // Track success of each operation
     let profileSuccess = false;
     let addressSuccess = false;
-    
+
     // Skip Firebase upload and use direct upload to the backend
     console.log('Current userData state for submission:', userData);
 
     // Update user profile
     try {
       console.log('Preparing profile data for backend...');
-      
+
       // Create form data for the backend (camelCase to snake_case)
       const formData = new FormData();
       formData.append('first_name', userData.firstName || '');
@@ -221,7 +221,7 @@ const ProfileSettings = () => {
         console.log('Appending profile picture to form data:', selectedFile.name, selectedFile.type, selectedFile.size);
         formData.append('profile_picture', selectedFile);
       }
-      
+
       console.log('Form data values:', {
         first_name: userData.firstName || '',
         last_name: userData.lastName || '',
@@ -229,13 +229,13 @@ const ProfileSettings = () => {
         birth_date: userData.birthDate || '',
         profile_picture: selectedFile ? selectedFile.name : 'No file selected'
       });
-      
+
       // Send profile update request
       console.log('Sending profile update request...');
       const profileResponse = await userService.updateProfile(formData);
       console.log('Profile update response:', profileResponse);
       profileSuccess = true;
-      
+
       // Update localStorage with profile data
       const currentUser = JSON.parse(localStorage.getItem('user') || '{}');
       const updatedUser = {
@@ -248,7 +248,7 @@ const ProfileSettings = () => {
       };
       console.log('Updating localStorage with user data:', updatedUser);
       localStorage.setItem('user', JSON.stringify(updatedUser));
-      
+
       // Update the profile picture in the UI if it was returned by the backend
       if (profileResponse.user?.profile_picture) {
         setUserData(prevData => ({
@@ -279,7 +279,7 @@ const ProfileSettings = () => {
         address_type: userData.address.addressType || 'shipping'
       };
       console.log('Address data prepared:', addressData);
-      
+
       // Send address update request
       console.log('Sending address update request...');
       const addressResponse = await userService.updateAddress(addressData);
@@ -294,7 +294,7 @@ const ProfileSettings = () => {
       };
       console.log('Updating localStorage with address data:', updatedUser);
       localStorage.setItem('user', JSON.stringify(updatedUser));
-      
+
     } catch (addressError) {
       console.error('Error updating address:', addressError);
       toast.error('Address update failed', {
@@ -303,7 +303,7 @@ const ProfileSettings = () => {
         icon: '❌'
       });
     }
-    
+
     // Show appropriate success message
     if (profileSuccess && addressSuccess) {
       setIsSaved(true);

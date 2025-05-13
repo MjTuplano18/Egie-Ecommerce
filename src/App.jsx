@@ -21,16 +21,25 @@ import ContactUs from './views/ContactUs/ContactUs';
 import Notification from './views/Notifications/Notification';
 import Purchases from './views/Purchases/Purchases';
 import OrderDetails from './views/Purchases/Purchase Components/OrderDetails';
-
-
+import { CartProvider } from './contexts/CartContext';
 import { Toaster } from "sonner";
 
-function App() {
-
+// Layout wrapper component
+const PageLayout = ({ children, isAuthPage }) => {
   return (
-    <Router>
-      <Main />
-    </Router>
+    <div className={`min-h-screen ${isAuthPage ? "" : "pt-[80px]"}`}>
+      {children}
+    </div>
+  );
+};
+
+function App() {
+  return (
+    <CartProvider>
+      <Router>
+        <Main />
+      </Router>
+    </CartProvider>
   )
 }
 
@@ -39,7 +48,7 @@ const Main = () => {
   const location = useLocation();
 
   // Detect if current route is sign-in/sign-up page
-   const isAuthPage = location.pathname === "/auth" ||
+  const isAuthPage = location.pathname === "/auth" ||
                     location.pathname === "/signin" ||
                     location.pathname === "/verify-email-success";
 
@@ -47,27 +56,28 @@ const Main = () => {
     <>
       <Navbar isAuth={isAuthPage} />
       <ScrollToTop />
-      <Routes>
-        <Route path="/" element={<Landing />} />
-        <Route path="/auth" element={<SignUp />} />
-        <Route path="/signin" element={<SignIn />} />
-        <Route path="/products" element={<Products />} />
-        <Route path="/products/details/:id" element={<ProductDetails />} />
-        <Route path="/cart" element={<Cart />} />
-        <Route path="/checkout" element={<Checkout />} />
-        <Route path="/thankyou" element={<ThankYou />} />
-        <Route path="/forgot-password" element={<ForgotPassword />} />
-        <Route path="/reset-password" element={<ResetPassword />} />
-        <Route path="/verify-email" element={<VerifyEmail />} />
-        <Route path="/profile/settings" element={<ProfileSettings />} />
-        <Route path="/settings" element={<Settings />} />
-        {/* Add more routes as needed */}
-        <Route path="/buildpc" element={<SystemBuild />} />
-        <Route path="/contactus" element={<ContactUs />} />
-        <Route path="/notification" element={<Notification />} />
-        <Route path="/purchases" element={<Purchases />} />
-        <Route path="/purchases/details/:id" element={<OrderDetails />} />
-      </Routes>
+      <PageLayout isAuthPage={isAuthPage}>
+        <Routes>
+          <Route path="/" element={<Landing />} />
+          <Route path="/auth" element={<SignUp />} />
+          <Route path="/signin" element={<SignIn />} />
+          <Route path="/products" element={<Products />} />
+          <Route path="/products/details/:id" element={<ProductDetails />} />
+          <Route path="/cart" element={<Cart />} />
+          <Route path="/checkout" element={<Checkout />} />
+          <Route path="/thankyou" element={<ThankYou />} />
+          <Route path="/forgot-password" element={<ForgotPassword />} />
+          <Route path="/reset-password" element={<ResetPassword />} />
+          <Route path="/verify-email" element={<VerifyEmail />} />
+          <Route path="/profile/settings" element={<ProfileSettings />} />
+          <Route path="/settings" element={<Settings />} />
+          <Route path="/buildpc" element={<SystemBuild />} />
+          <Route path="/contactus" element={<ContactUs />} />
+          <Route path="/notification" element={<Notification />} />
+          <Route path="/purchases" element={<Purchases />} />
+          <Route path="/purchases/details/:id" element={<OrderDetails />} />
+        </Routes>
+      </PageLayout>
       <Footer isAuth={isAuthPage} />
       <Toaster richColors position="bottom-right" />
     </>
