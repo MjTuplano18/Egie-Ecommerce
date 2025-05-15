@@ -204,6 +204,28 @@ export const userService = {
     }).then(handleResponse);
   },
 
+  // Get user address
+  getAddress: async () => {
+    return fetch(`${API_BASE_URL}/get-address/`, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${localStorage.getItem('accessToken')}`
+      }
+    }).then(handleResponse);
+  },
+
+  // Update user address
+  updateAddress: async (addressData) => {
+    return fetch(`${API_BASE_URL}/update-address/`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${localStorage.getItem('accessToken')}`
+      },
+      body: JSON.stringify(addressData)
+    }).then(handleResponse);
+  },
+
   // Update user profile
   updateProfile: async (userData) => {
     // If userData is FormData, don't set Content-Type (browser will set it with boundary)
