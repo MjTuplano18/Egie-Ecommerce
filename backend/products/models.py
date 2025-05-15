@@ -1,8 +1,9 @@
-
 from django.db import models
+from django.core.validators import MinValueValidator, MaxValueValidator
+
 class ProductCategory(models.Model):
     name = models.CharField(max_length=100)
-    description = models.TextField(blank=True)
+    image = models.ImageField(upload_to='category_images/', null=True, blank=True)
     parent = models.ForeignKey('self', null=True, blank=True, on_delete=models.SET_NULL, related_name='subcategories')
 
     class Meta:
@@ -38,11 +39,37 @@ class Product(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
     is_active = models.BooleanField(default=True)
 
+    # New fields
+    is_featured = models.BooleanField(default=False, help_text="Mark this product as featured")
+    is_new_arrival = models.BooleanField(default=True, help_text="Mark this product as a new arrival")
+    is_top_seller = models.BooleanField(default=False, help_text="Mark this product as a top seller")
+    rating = models.DecimalField(max_digits=3, decimal_places=2, default=0.00,
+                               validators=[MinValueValidator(0.0), MaxValueValidator(5.0)])
+    ratings_count = models.PositiveIntegerField(default=0)
+    sales_count = models.PositiveIntegerField(default=0, help_text="Number of times this product has been sold")
+    specifications = models.JSONField(default=dict, blank=True, help_text="Technical specifications of the product")
+    short_description = models.TextField(blank=True, help_text="A brief description for product listings")
+    sub_category = models.CharField(max_length=100, blank=True, help_text="Sub-category or type of the product")
+
     class Meta:
-        indexes = [models.Index(fields=['slug'])]
+        indexes = [
+            models.Index(fields=['slug']),
+            models.Index(fields=['is_featured']),
+            models.Index(fields=['is_new_arrival']),
+            models.Index(fields=['is_top_seller']),
+            models.Index(fields=['rating']),
+            models.Index(fields=['sales_count']),
+        ]
+        ordering = ['-added_at']  # Newest products first by default
 
     def __str__(self):
         return self.name
+
+    @property
+    def average_rating(self):
+        if self.ratings_count == 0:
+            return 0
+        return self.rating
 
 class ProductImage(models.Model):
     product = models.ForeignKey(Product, on_delete=models.CASCADE, related_name='images')
@@ -50,8 +77,20 @@ class ProductImage(models.Model):
     alt_text = models.CharField(max_length=255, null=True, blank=True)
     is_feature = models.BooleanField(default=False)
 
+    class Meta:
+        ordering = ['-is_feature', 'id']  # Featured images first
+
     def __str__(self):
         return f"Image for {self.product.name}"
+
+    def save(self, *args, **kwargs):
+        if self.is_feature:
+            # If this image is being set as featured, unset is_feature for other images
+            ProductImage.objects.filter(product=self.product).exclude(id=self.id).update(is_feature=False)
+        elif not ProductImage.objects.filter(product=self.product, is_feature=True).exists():
+            # If no featured image exists for this product, set this one as featured
+            self.is_feature = True
+        super().save(*args, **kwargs)
 
 class AttributeType(models.Model):
     name = models.CharField(max_length=100, unique=True)

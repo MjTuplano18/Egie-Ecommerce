@@ -23,78 +23,172 @@ const handleResponse = async (response) => {
   return { success: true };
 };
 
-// Get CSRF token from cookies
-const getCSRFToken = () => {
-  const name = 'csrftoken=';
-  const decodedCookie = decodeURIComponent(document.cookie);
-  const cookieArray = decodedCookie.split(';');
-
-  for (let i = 0; i < cookieArray.length; i++) {
-    let cookie = cookieArray[i].trim();
-    if (cookie.indexOf(name) === 0) {
-      return cookie.substring(name.length, cookie.length);
-    }
-  }
-  return '';
-};
-
-// Function to get auth headers
-const getAuthHeaders = (includeContentType = true) => {
-  const headers = {};
-
-  // Try different auth token formats
-  const accessToken = localStorage.getItem('accessToken');
-  const authToken = localStorage.getItem('authToken');
-  const token = accessToken || authToken;
-
-  console.log('Auth tokens available:', { accessToken, authToken });
-
-  if (token) {
-    // Add both formats of Authorization header to support different backend expectations
-    if (token.startsWith('Bearer ')) {
-      headers['Authorization'] = token;
-    } else {
-      headers['Authorization'] = `Bearer ${token}`;
-    }
-    console.log('Using Authorization header:', headers['Authorization']);
-  } else {
-    console.warn('No authentication token found in localStorage');
-  }
-
-  const csrfToken = getCSRFToken();
-  if (csrfToken) {
-    headers['X-CSRFToken'] = csrfToken;
-    console.log('Using CSRF token:', csrfToken);
-  }
-
-  if (includeContentType) {
-    headers['Content-Type'] = 'application/json';
-  }
-
-  return headers;
-};
-
 // Product-related API calls
 export const productService = {
-  // Get all products with optional filtering
+  // Get products with pagination and filtering
   getProducts: async (filters = {}) => {
-    // Convert filters object to URL query parameters
-    const queryParams = new URLSearchParams();
-    Object.entries(filters).forEach(([key, value]) => {
-      if (value !== null && value !== undefined) {
-        queryParams.append(key, value);
+    const queryParams = new URLSearchParams(filters);
+    console.log('Fetching products with filters:', Object.fromEntries(queryParams));
+    
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/products/?${queryParams.toString()}`, {
+        method: 'GET'
+      });
+      
+      if (!response.ok) {
+        throw new Error(`API error: ${response.status} ${response.statusText}`);
       }
-    });
-
-    const queryString = queryParams.toString() ? `?${queryParams.toString()}` : '';
-    return fetch(`${API_BASE_URL}/products/${queryString}`)
-      .then(handleResponse);
+      
+      const data = await response.json();
+      console.log('Products API response:', data);
+      return data;
+    } catch (error) {
+      console.error('Error fetching products:', error);
+      throw error;
+    }
   },
 
-  // Get a single product by ID
-  getProductById: async (id) => {
-    return fetch(`${API_BASE_URL}/products/${id}/`)
-      .then(handleResponse);
+  // Get a single product by slug
+  getProduct: async (slug) => {
+    return fetch(`${API_BASE_URL}/api/products/${slug}/`, {
+      method: 'GET'
+    }).then(handleResponse);
+  },
+
+  // Get featured products
+  getFeaturedProducts: async () => {
+    console.log('Fetching featured products');
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/products/featured/`, {
+        method: 'GET'
+      });
+      
+      if (!response.ok) {
+        throw new Error(`API error: ${response.status} ${response.statusText}`);
+      }
+      
+      const data = await response.json();
+      console.log('Featured products response:', data);
+      return data;
+    } catch (error) {
+      console.error('Error fetching featured products:', error);
+      throw error;
+    }
+  },
+
+  // Get new arrivals
+  getNewArrivals: async () => {
+    console.log('Fetching new arrivals');
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/products/new_arrivals/`, {
+        method: 'GET'
+      });
+      
+      if (!response.ok) {
+        throw new Error(`API error: ${response.status} ${response.statusText}`);
+      }
+      
+      const data = await response.json();
+      console.log('New arrivals response:', data);
+      return data;
+    } catch (error) {
+      console.error('Error fetching new arrivals:', error);
+      throw error;
+    }
+  },
+
+  // Get top sellers
+  getTopSellers: async () => {
+    console.log('Fetching top sellers');
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/products/top_sellers/`, {
+        method: 'GET'
+      });
+      
+      if (!response.ok) {
+        throw new Error(`API error: ${response.status} ${response.statusText}`);
+      }
+      
+      const data = await response.json();
+      console.log('Top sellers response:', data);
+      return data;
+    } catch (error) {
+      console.error('Error fetching top sellers:', error);
+      throw error;
+    }
+  },
+
+  // Search products with pagination
+  searchProducts: async (query, page = 1, filters = {}) => {
+    const queryParams = new URLSearchParams({ 
+      page, 
+      search: query,
+      ...filters 
+    });
+    return fetch(`${API_BASE_URL}/api/products/?${queryParams.toString()}`, {
+      method: 'GET'
+    }).then(handleResponse);
+  },
+
+  // Get products by category with pagination
+  getProductsByCategory: async (categoryName, page = 1, filters = {}) => {
+    const queryParams = new URLSearchParams({ 
+      page,
+      category__name: categoryName,
+      ...filters 
+    });
+    return fetch(`${API_BASE_URL}/api/products/?${queryParams.toString()}`, {
+      method: 'GET'
+    }).then(handleResponse);
+  },
+
+  // Get product details by slug
+  getProductDetails: async (slug) => {
+    return fetch(`${API_BASE_URL}/api/products/${slug}/`, {
+      method: 'GET'
+    }).then(handleResponse);
+  },
+
+  // Get all categories
+  getCategories: async () => {
+    console.log('Fetching categories from:', `${API_BASE_URL}/api/categories/`);
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/categories/`, {
+        method: 'GET'
+      });
+      
+      if (!response.ok) {
+        throw new Error(`API error: ${response.status} ${response.statusText}`);
+      }
+      
+      const data = await response.json();
+      console.log('Categories API response:', data);
+      return data;
+    } catch (error) {
+      console.error('Error fetching categories:', error);
+      throw error;
+    }
+  },
+
+  // Get all brands
+  getBrands: async () => {
+    console.log('Fetching brands from:', `${API_BASE_URL}/api/brands/`);
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/brands/`, {
+        method: 'GET'
+      });
+      
+      if (!response.ok) {
+        throw new Error(`API error: ${response.status} ${response.statusText}`);
+      }
+      
+      const data = await response.json();
+      console.log('Brands API response:', data);
+      return data;
+    } catch (error) {
+      console.error('Error fetching brands:', error);
+      throw error;
+    }
   }
 };
 
@@ -104,8 +198,9 @@ export const userService = {
   getProfile: async () => {
     return fetch(`${API_BASE_URL}/get-profile/`, {
       method: 'GET',
-      headers: getAuthHeaders(),
-      credentials: 'include'
+      headers: {
+        'Authorization': `Bearer ${localStorage.getItem('accessToken')}`
+      }
     }).then(handleResponse);
   },
 
@@ -116,53 +211,13 @@ export const userService = {
 
     return fetch(`${API_BASE_URL}/api/update-profile/`, {
       method: 'POST',
-      headers: {
-        ...getAuthHeaders(!isFormData),
+      headers: isFormData ? {
+        'Authorization': `Bearer ${localStorage.getItem('accessToken')}`
+      } : {
+        'Content-Type': 'application/json',
         'Authorization': `Bearer ${localStorage.getItem('accessToken')}`
       },
-      body: isFormData ? userData : JSON.stringify(userData),
-      credentials: 'include'
-    }).then(handleResponse);
-  },
-
-  // Get user address
-  getAddress: async () => {
-    return fetch(`${API_BASE_URL}/get-address/`, {
-      method: 'GET',
-      headers: getAuthHeaders(),
-      credentials: 'include'
-    }).then(handleResponse);
-  },
-
-  // Update or create user address
-  updateAddress: async (addressData) => {
-    return fetch(`${API_BASE_URL}/update-address/`, {
-      method: 'POST',
-      headers: getAuthHeaders(),
-      body: JSON.stringify(addressData),
-      credentials: 'include'
-    }).then(handleResponse);
-  },
-
-  // Update user password
-  updatePassword: async (passwordData) => {
-    return fetch(`${API_BASE_URL}/api/change-password/`, {
-      method: 'POST',
-      headers: getAuthHeaders(),
-      body: JSON.stringify(passwordData),
-      credentials: 'include'
-    }).then(handleResponse);
-  },
-
-  // Upload profile picture
-  uploadProfilePicture: async (formData) => {
-    return fetch(`${API_BASE_URL}/api/update-profile/`, {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${localStorage.getItem('accessToken')}`
-      },
-      body: formData,
-      credentials: 'include'
+      body: isFormData ? userData : JSON.stringify(userData)
     }).then(handleResponse);
   }
 };

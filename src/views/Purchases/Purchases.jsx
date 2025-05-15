@@ -18,7 +18,7 @@ const Purchases = () => {
       try {
         let ordersData = await orderService.getOrders();
 
-        // Format orders if necessary
+        // Format orders to include all necessary data
         ordersData = ordersData.map(order => ({
           ...order,
           orderId: order.orderId,
@@ -26,6 +26,17 @@ const Purchases = () => {
           products: order.items || order.products || [],
           status: order.status || 'To Ship',
           subStatus: order.subStatus || 'Processing',
+          paymentDetails: order.paymentDetails || {
+            method: order.paymentMethod,
+            status: 'Paid',
+            total: order.total
+          },
+          deliveryDetails: order.deliveryDetails || {
+            method: order.deliveryMethod,
+            address: order.shippingAddress,
+            billing: order.billingAddress,
+            pickupLocation: order.pickupLocation
+          },
           total: order.total || order.items?.reduce((sum, item) => sum + (parseFloat(item.price) * item.quantity), 0) || 0
         }));
 
@@ -162,6 +173,8 @@ const Purchases = () => {
                 handleStatusChange(order.orderId, newStatus, reason)
               }
               cancelReason={order.cancelReason}
+              paymentDetails={order.paymentDetails}
+              deliveryDetails={order.deliveryDetails}
             />
           ))
         ) : (

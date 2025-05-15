@@ -16,42 +16,52 @@ Including another URLconf
 """
 from django.contrib import admin
 from django.urls import path, include
-from orders import views as orders_views
+from django.conf import settings
+from django.conf.urls.static import static
 from django.views.decorators.csrf import ensure_csrf_cookie
 from django.http import HttpResponse
 from rest_framework import routers
-from products.views import ProductViewSet
-from django.conf import settings
-from django.conf.urls.static import static
+from products.views import ProductViewSet, CategoryViewSet, BrandViewSet, ColorViewSet, brands_by_category
+from orders import views as orders_views
 from rest_framework_simplejwt.views import (
     TokenObtainPairView,
     TokenRefreshView,
 )
 
-#Router and registration for viewsets
-router =routers.DefaultRouter()
+# Router and registration for viewsets
+router = routers.DefaultRouter()
 router.register(r'products', ProductViewSet)
+router.register(r'categories', CategoryViewSet)
+router.register(r'brands', BrandViewSet)
+router.register(r'colors', ColorViewSet)
 
 @ensure_csrf_cookie
 def get_csrf_token(request):
     return HttpResponse("CSRF cookie set")
 
+# backend/config/urls.py
+# Move the API URLs before the catch-all pattern that serves the React app
 
 urlpatterns = [
-    # API URLs should come before the catch-all patterns
+    # Admin URLs
+    path('admin/', admin.site.urls),
+    
+    # API URLs - KEEP THESE BEFORE THE CATCH-ALL PATTERN
     path('api/', include(router.urls)),
-    path("api/create-order/", orders_views.create_order, name="create_order"),
+    path('api/products/', include('products.urls')),
+    path('api/brands-by-category/', brands_by_category, name='brands-by-category'),
+    path('api/create-order/', orders_views.create_order, name='create_order'),
     path('api/get-csrf-token/', get_csrf_token, name='get_csrf_token'),
     path('api/token/', TokenObtainPairView.as_view(), name='token_obtain_pair'),
     path('api/token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
 
-    # Admin and other URLs
-    path('admin/', admin.site.urls),
-  # This should be the LAST pattern as it might be catching all requests
+    # Authentication URLs - KEEP THESE AFTER API URLS
+    path('api/accounts/', include('accounts.urls')),
+
+    # Catch-all pattern for React app - MUST BE LAST
     path('', include('accounts.urls')),
-    path('api/', include('products.urls')),
-    path('api/', include('orders.urls')),
 ]
 
+# Add media URL patterns for development
 if settings.DEBUG:
     urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

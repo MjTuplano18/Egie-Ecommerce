@@ -1,18 +1,10 @@
-import React, { useState, useMemo } from "react";
-import { components } from "../../Data/components"; 
+import React, { useState, useEffect } from "react";
 
-
-const SearchFill = ({ filters, onChange }) => {
-  // 🔍 Extract unique brands from components
-  const allBrands = useMemo(() => {
-    const brandSet = new Set();
-    components.forEach((component) => {
-      component.products.forEach((product) => {
-        brandSet.add(product.brand);
-      });
-    });
-    return Array.from(brandSet);
-  }, []);
+const SearchFill = ({ filters, onChange, selectedCategory }) => {
+  const [brands, setBrands] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [showAllBrands, setShowAllBrands] = useState(false);
 
   const discounts = ["10% Off", "20% Off", "30% Off", "50% Off"];
 
@@ -21,7 +13,50 @@ const SearchFill = ({ filters, onChange }) => {
   const [selectedBrands, setSelectedBrands] = useState([]);
   const [selectedDiscounts, setSelectedDiscounts] = useState([]);
   const [selectedRating, setSelectedRating] = useState(null);
-    const [showAllBrands, setShowAllBrands] = useState(false); // ✅
+
+  // Fetch brands based on selected category
+  useEffect(() => {
+    const fetchBrands = async () => {
+      try {
+        setLoading(true);
+        
+        // Reset selected brands when category changes
+        setSelectedBrands([]);
+        onChange({ brands: [] });
+        
+        // Build the API URL based on whether a category is selected
+        let url = 'http://localhost:8000/api/brands/';
+        if (selectedCategory) {
+          url = `http://localhost:8000/api/brands-by-category/?category=${encodeURIComponent(selectedCategory)}`;
+        }
+        
+        console.log('Fetching brands from:', url);
+        const response = await fetch(url);
+        
+        if (!response.ok) {
+          throw new Error(`API error: ${response.status} ${response.statusText}`);
+        }
+        
+        const data = await response.json();
+        console.log('Brands data:', data);
+        
+        // Extract brand names from the response
+        const brandNames = data.map(brand => brand.name);
+        console.log('Brand names for category:', selectedCategory, brandNames);
+        
+        setBrands(brandNames);
+        setError(null);
+      } catch (err) {
+        console.error('Error fetching brands:', err);
+        setError(err.message);
+        setBrands([]);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchBrands();
+  }, [selectedCategory]);
 
   const applyPrice = () => {
     onChange({
@@ -100,39 +135,49 @@ const SearchFill = ({ filters, onChange }) => {
       <hr className="border-t-2 border-black my-4" />
 
       {/* Brand Filter */}
-        <div className="mb-6 w-full">
-    <label className="block mb-2 font-medium">Brand</label>
-    <ul>
-      {(showAllBrands ? allBrands : allBrands.slice(0, 4)).map((brand) => (
-        <li key={brand} className="flex items-center">
-          <input
-            type="checkbox"
-            id={`brand-${brand}`}
-            value={brand}
-            checked={selectedBrands.includes(brand)}
-            onChange={() => toggleBrand(brand)}
-            className="text-blue-600 accent-blue-600"
-          />
-          <label
-            htmlFor={`brand-${brand}`}
-            className="text-sm text-gray-700 ml-2"
-          >
-            {brand}
-          </label>
-        </li>
-      ))}
-    </ul>
+      <div className="mb-6 w-full">
+        <label className="block mb-2 font-medium">Brand</label>
+        {loading ? (
+          <p className="text-sm text-gray-500">Loading brands...</p>
+        ) : error ? (
+          <p className="text-sm text-red-500">Error loading brands: {error}</p>
+        ) : brands.length === 0 ? (
+          <p className="text-sm text-yellow-600">No brands found for this category.</p>
+        ) : (
+          <>
+            <ul>
+              {(showAllBrands ? brands : brands.slice(0, 4)).map((brand) => (
+                <li key={brand} className="flex items-center">
+                  <input
+                    type="checkbox"
+                    id={`brand-${brand}`}
+                    value={brand}
+                    checked={selectedBrands.includes(brand)}
+                    onChange={() => toggleBrand(brand)}
+                    className="text-blue-600 accent-blue-600"
+                  />
+                  <label
+                    htmlFor={`brand-${brand}`}
+                    className="text-sm text-gray-700 ml-2"
+                  >
+                    {brand}
+                  </label>
+                </li>
+              ))}
+            </ul>
 
-    {/* Show more/less toggle */}
-    {allBrands.length > 4 && (
-      <button
-        onClick={() => setShowAllBrands(!showAllBrands)}
-        className="text-blue-600 text-sm mt-2 cursor-pointer"
-      >
-        {showAllBrands ? "See less" : "See all brands"}
-      </button>
-    )}
-  </div>
+            {/* Show more/less toggle */}
+            {brands.length > 4 && (
+              <button
+                onClick={() => setShowAllBrands(!showAllBrands)}
+                className="text-blue-600 text-sm mt-2 cursor-pointer"
+              >
+                {showAllBrands ? "See less" : "See all brands"}
+              </button>
+            )}
+          </>
+        )}
+      </div>
 
       <hr className="border-t-2 border-black my-4" />
 

@@ -2,6 +2,7 @@ from django.urls import path, re_path
 from . import views
 
 
+# accounts/urls.py
 urlpatterns = [
     # API endpoints
     path('api/signup/', views.signup, name='signup'),
@@ -19,6 +20,6 @@ urlpatterns = [
     path('get-address/', views.get_address, name='get_address'),
     path('update-address/', views.update_address, name='update_address'),
 
-    # Serve React App - catch all other URLs
+    # Serve React App - MUST BE LAST
     re_path(r'^.*', views.index, name='index'),
 ]
