@@ -1,10 +1,16 @@
 from django.contrib import admin
 from django.utils.html import format_html
-from .models import ProductCategory, Brand, Color, Product, ProductImage, AttributeType, AttributeOption, ProductAttribute
+from .models import ProductCategory, Brand, Color, Product, ProductImage, AttributeType, AttributeOption, ProductAttribute, ProductInventory,Discount , RatingReview , ProductPerformance
+
+class ProductInventoryInline(admin.TabularInline):
+    model = ProductInventory
+    extra = 1
+    fields = ('location', 'quantity', 'created_at', 'deleted_at')
+    readonly_fields = ('created_at', 'deleted_at')
 
 class ProductImageInline(admin.TabularInline):
     model = ProductImage
-    extra = 1
+    extra = 4
     readonly_fields = ['image_preview']
     
     def image_preview(self, obj):
@@ -15,78 +21,64 @@ class ProductImageInline(admin.TabularInline):
 class ProductAttributeInline(admin.TabularInline):
     model = ProductAttribute
     extra = 1
-
 @admin.register(Product)
 class ProductAdmin(admin.ModelAdmin):
-    list_display = ('name', 'category', 'brand', 'selling_price', 'stock', 'rating', 'ratings_count', 'is_active', 'is_new_arrival', 'is_top_seller')
-    list_filter = ('category', 'brand', 'is_active', 'is_new_arrival', 'is_top_seller')
-    search_fields = ('name', 'description', 'brand__name', 'category__name')
+    list_display = (
+        'name', 'brand', 'category', 'selling_price', 'stock',
+        'is_featured', 'is_new_arrival', 'is_top_seller', 'average_rating'
+    )
+    list_filter = (
+        'brand', 'category', 'is_featured', 'is_new_arrival',
+        'is_top_seller', 'is_active'
+    )
+    search_fields = ('name', 'description', 'short_description', 'brand__name')
     prepopulated_fields = {'slug': ('name',)}
-    inlines = [ProductImageInline, ProductAttributeInline]
-    list_editable = ('is_active', 'is_new_arrival', 'is_top_seller')
+    inlines = [ProductImageInline, ProductAttributeInline, ProductInventoryInline]
+    filter_horizontal = ('bundles', 'compatible_builds')
     fieldsets = (
-        ('Basic Information', {
-            'fields': ('name', 'slug', 'description', 'short_description')
+        (None, {
+            'fields': (
+                'name', 'slug', 'brand', 'category', 'sub_category', 'color',
+                'description', 'short_description', 'specifications', 'warranty'
+            )
         }),
-        ('Categorization', {
-            'fields': ('category', 'brand', 'color')
+        ('Pricing & Stock', {
+            'fields': (
+                'original_price', 'selling_price', 'stock'
+            )
         }),
-        ('Pricing', {
-            'fields': ('original_price', 'selling_price')
+        ('Display Flags', {
+            'fields': (
+                'is_featured', 'is_new_arrival', 'is_top_seller', 'is_active'
+            )
         }),
-        ('Inventory', {
-            'fields': ('stock',)
+        ('Ratings & Stats', {
+            'fields': (
+                'rating', 'ratings_count', 'sales_count'
+            )
         }),
-        ('Rating', {
-            'fields': ('rating', 'ratings_count'),
-            'description': 'Product rating (0-5 stars) and number of ratings received'
+        ('Relations', {
+            'fields': (
+                'bundles', 'compatible_builds'
+            )
         }),
-        ('Status', {
-            'fields': ('is_active', 'is_new_arrival', 'is_top_seller')
-        }),
-        ('Specifications', {
-            'fields': ('specifications',),
-            'classes': ('collapse',)
-        }),
-        ('Additional Metrics', {
-            'fields': ('sales_count',),
-            'classes': ('collapse',)
-        })
     )
 
 @admin.register(ProductCategory)
-class CategoryAdmin(admin.ModelAdmin):
-    list_display = ('name', 'parent', 'image_preview')
+class ProductCategoryAdmin(admin.ModelAdmin):
+    list_display = ('name', 'parent')
     search_fields = ('name',)
     list_filter = ('parent',)
 
-    def image_preview(self, obj):
-        if obj.image:
-            return format_html('<img src="{}" width="50" height="50" style="object-fit: contain;" />', obj.image.url)
-        return "No image"
-    image_preview.short_description = 'Image'
-
 @admin.register(Brand)
 class BrandAdmin(admin.ModelAdmin):
-    list_display = ('name', 'description')
+    list_display = ('name',)
     search_fields = ('name',)
 
 @admin.register(Color)
 class ColorAdmin(admin.ModelAdmin):
     list_display = ('name',)
     search_fields = ('name',)
-
-@admin.register(ProductImage)
-class ProductImageAdmin(admin.ModelAdmin):
-    list_display = ('product', 'image_preview', 'is_feature')
-    list_filter = ('is_feature', 'product__category')
-    search_fields = ('product__name',)
-    
-    def image_preview(self, obj):
-        if obj.image:
-            return format_html('<img src="{}" width="100" height="100" style="object-fit: contain;" />', obj.image.url)
-        return "No image"
-    image_preview.short_description = 'Preview'
 
 @admin.register(AttributeType)
 class AttributeTypeAdmin(admin.ModelAdmin):
@@ -96,3 +88,27 @@ class AttributeTypeAdmin(admin.ModelAdmin):
 class AttributeOptionAdmin(admin.ModelAdmin):
     list_display = ('type', 'value')
     list_filter = ('type',)
+    search_fields = ('value',)
+
+@admin.register(ProductInventory)
+class ProductInventoryAdmin(admin.ModelAdmin):
+    list_display = ('product', 'location', 'quantity', 'created_at', 'deleted_at')
+    list_filter = ('location',)
+    search_fields = ('product__name',)
+
+@admin.register(Discount)
+class DiscountAdmin(admin.ModelAdmin):
+    list_display = ('code', 'discount_percent', 'valid_from', 'valid_to', 'is_active')
+    list_filter = ('is_active',)
+    search_fields = ('code',)
+
+@admin.register(RatingReview)
+class RatingReviewAdmin(admin.ModelAdmin):
+    list_display = ('user', 'product', 'rating', 'created_at')
+    search_fields = ('user__username', 'product__name')
+    list_filter = ('rating', 'created_at')
+
+@admin.register(ProductPerformance)
+class ProductPerformanceAdmin(admin.ModelAdmin):
+    list_display = ('product', 'sales_count', 'return_count')
+    search_fields = ('product__name',)

@@ -29,6 +29,7 @@ class Product(models.Model):
     name = models.CharField(max_length=255)
     slug = models.SlugField(unique=True)
     description = models.TextField()
+    short_description = models.TextField(blank=True, help_text="A brief description for product listings")
     original_price = models.DecimalField(max_digits=10, decimal_places=2)
     selling_price = models.DecimalField(max_digits=10, decimal_places=2)
     stock = models.IntegerField()
@@ -39,17 +40,20 @@ class Product(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
     is_active = models.BooleanField(default=True)
 
-    # New fields
-    is_featured = models.BooleanField(default=False, help_text="Mark this product as featured")
-    is_new_arrival = models.BooleanField(default=True, help_text="Mark this product as a new arrival")
-    is_top_seller = models.BooleanField(default=False, help_text="Mark this product as a top seller")
-    rating = models.DecimalField(max_digits=3, decimal_places=2, default=0.00,
-                               validators=[MinValueValidator(0.0), MaxValueValidator(5.0)])
+    is_featured = models.BooleanField(default=False)
+    is_new_arrival = models.BooleanField(default=True)
+    is_top_seller = models.BooleanField(default=False)
+
+    rating = models.DecimalField(max_digits=3, decimal_places=2, default=0.00, validators=[MinValueValidator(0.0), MaxValueValidator(5.0)])
     ratings_count = models.PositiveIntegerField(default=0)
-    sales_count = models.PositiveIntegerField(default=0, help_text="Number of times this product has been sold")
-    specifications = models.JSONField(default=dict, blank=True, help_text="Technical specifications of the product")
-    short_description = models.TextField(blank=True, help_text="A brief description for product listings")
-    sub_category = models.CharField(max_length=100, blank=True, help_text="Sub-category or type of the product")
+    sales_count = models.PositiveIntegerField(default=0)
+
+    specifications = models.JSONField(default=dict, blank=True)
+    warranty = models.CharField(max_length=255, blank=True, help_text="Warranty period or conditions")
+    sub_category = models.CharField(max_length=100, blank=True)
+
+    bundles = models.ManyToManyField('self', blank=True, symmetrical=False, related_name='bundled_with')
+    compatible_builds = models.ManyToManyField('self', blank=True, symmetrical=False, related_name='compatible_with')
 
     class Meta:
         indexes = [
@@ -60,7 +64,7 @@ class Product(models.Model):
             models.Index(fields=['rating']),
             models.Index(fields=['sales_count']),
         ]
-        ordering = ['-added_at']  # Newest products first by default
+        ordering = ['-added_at']
 
     def __str__(self):
         return self.name
@@ -78,17 +82,15 @@ class ProductImage(models.Model):
     is_feature = models.BooleanField(default=False)
 
     class Meta:
-        ordering = ['-is_feature', 'id']  # Featured images first
+        ordering = ['-is_feature', 'id']
 
     def __str__(self):
         return f"Image for {self.product.name}"
 
     def save(self, *args, **kwargs):
         if self.is_feature:
-            # If this image is being set as featured, unset is_feature for other images
             ProductImage.objects.filter(product=self.product).exclude(id=self.id).update(is_feature=False)
         elif not ProductImage.objects.filter(product=self.product, is_feature=True).exists():
-            # If no featured image exists for this product, set this one as featured
             self.is_feature = True
         super().save(*args, **kwargs)
 

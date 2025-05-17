@@ -23,7 +23,9 @@ const TopSeller = () => {
         const data = await response.json();
         console.log('Top sellers data:', data);
 
+        // Handle both paginated and non-paginated responses
         const productList = data.results || data || [];
+        console.log('Product list:', productList);
         setProducts(productList);
         setError(null);
       } catch (err) {

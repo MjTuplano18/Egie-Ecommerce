@@ -1,8 +1,6 @@
-import React from "react";
-
-import { useState } from "react";
+import React, { useState, useEffect } from "react";
 import ProductModal from "../../Products/ProductGrid/ProductModal/ProductModal";
-import {Link} from "react-router-dom";
+import { Link } from "react-router-dom";
 import {
   Carousel,
   CarouselContent,
@@ -11,178 +9,137 @@ import {
   CarouselPrevious,
 } from "@/components/ui/carousel";
 
-const BuildLaps = ({set}) => {
+const BuildLaps = ({ set }) => {
   const [selectedProduct, setSelectedProduct] = useState(null);
+  const [products, setProducts] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
-  const productsSetOne = [
-    {
-      id: 1,
-      title: "MSI Pro 16 Flex-036AU 15.6” Touch All-In-One",
-      price: "$499.00",
-      oldPrice: "$599.00",
-      reviews: 4,
-      inStock: true,
-      imageUrl: "https://via.placeholder.com/150",
-    },
-    {
-      id: 2,
-      title: "HP ProOne 440 G6 23.8” Touch All-In-One",
-      price: "$699.00",
-      oldPrice: "$749.00",
-      reviews: 5,
-      inStock: true,
-      imageUrl: "https://via.placeholder.com/150",
-    },
-    {
-      id: 3,
-      title: "Dell OptiPlex 3280 21.5” All-In-One",
-      price: "$599.00",
-      oldPrice: "$699.00",
-      reviews: 3,
-      inStock: false,
-      imageUrl: "https://via.placeholder.com/150",
-    },
-    {
-      id: 4,
-      title: "Lenovo ThinkCentre M90a AIO Gen 3",
-      price: "$899.00",
-      oldPrice: "$999.00",
-      reviews: 5,
-      inStock: true,
-      imageUrl: "https://via.placeholder.com/150",
-    },
-    {
-      id: 5,
-      title: "Acer Aspire C24-1700 23.8” All-In-One",
-      price: "$499.00",
-      oldPrice: "$599.00",
-      reviews: 4,
-      inStock: true,
-      imageUrl: "https://via.placeholder.com/150",
-    },
-    {
-      id: 6,
-      title: "Apple iMac 24” M1 Chip 2021",
-      price: "$1,299.00",
-      oldPrice: "$1,499.00",
-      reviews: 5,
-      inStock: true,
-      imageUrl: "https://via.placeholder.com/150",
-    },
-  ];
-
-  const productsSetTwo = [
-    {
-      id: 7,
-      title: "Asus V222FAK-BA037T 22” All-In-One",
-      price: "$549.00",
-      oldPrice: "$649.00",
-      reviews: 4,
-      inStock: true,
-      imageUrl: "https://via.placeholder.com/150",
-    },
-    {
-      id: 8,
-      title: "Lenovo IdeaCentre AIO 3 24ADA6",
-      price: "$649.00",
-      oldPrice: "$749.00",
-      reviews: 4,
-      inStock: true,
-      imageUrl: "https://via.placeholder.com/150",
-    },
-    {
-      id: 9,
-      title: "HP All-in-One 22-df0130z",
-      price: "$499.00",
-      oldPrice: "$599.00",
-      reviews: 3,
-      inStock: true,
-      imageUrl: "https://via.placeholder.com/150",
-    },
-    {
-      id: 10,
-      title: "Dell Inspiron 24 5410 All-In-One",
-      price: "$799.00",
-      oldPrice: "$899.00",
-      reviews: 5,
-      inStock: false,
-      imageUrl: "https://via.placeholder.com/150",
-    },
-    {
-      id: 11,
-      title: "MSI Modern AM242TP 23.8” Touch",
-      price: "$899.00",
-      oldPrice: "$999.00",
-      reviews: 4,
-      inStock: true,
-      imageUrl: "https://via.placeholder.com/150",
-    },
-    {
-      id: 12,
-      title: "Apple iMac 27” Retina 5K Display",
-      price: "$1,799.00",
-      oldPrice: "$1,999.00",
-      reviews: 5,
-      inStock: true,
-      imageUrl: "https://via.placeholder.com/150",
-    },
-  ];
-
-  // Conditional loading of products
-  const products = set === "two" ? productsSetTwo : productsSetOne;
-
+  // Determine what type of products to fetch based on the 'set' prop
+  const categoryName = set === "two" ? "Custom Build" : "Laptop";
   const title = set === "two" ? "Custom Builds" : "Laptops";
+
+  useEffect(() => {
+    const fetchProducts = async () => {
+      try {
+        setLoading(true);
+        const response = await fetch(`http://localhost:8000/api/products/?search=${categoryName}`, {
+          method: 'GET'
+        });
+
+        if (!response.ok) {
+          throw new Error(`API error: ${response.status} ${response.statusText}`);
+        }
+
+        const data = await response.json();
+        const productList = data.results || data || [];
+        setProducts(productList);
+        setError(null);
+      } catch (err) {
+        console.error(`Error fetching ${categoryName}:`, err);
+        setError(err.message);
+        setProducts([]);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchProducts();
+  }, [categoryName, set]);
+
+  // Common title section that stays consistent across all states
+  const TitleSection = () => (
+    <div className="w-1/3 md:w-1/4 min-w-[200px] mr-6 md:mr-12 px-4 sm:px-6 lg:px-8 text-center flex flex-col items-center bg-amber-800 h-full py-6 rounded-lg">
+      <h2 className="text-2xl md:text-4xl font-bold text-gray-800 mb-2">{title}</h2>
+      <Link
+        to={`/products?category=${encodeURIComponent(categoryName)}`}
+        className="text-indigo-600 hover:underline text-lg"
+      >
+        See All Products
+      </Link>
+    </div>
+  );
+
+  if (loading) {
+    return (
+      <div className="product-display flex flex-row p-6">
+        <TitleSection />
+        <div className="flex-1 flex justify-center items-center min-h-[200px]">
+          Loading {title.toLowerCase()}...
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="product-display flex flex-row p-6">
+        <TitleSection />
+        <div className="flex-1 flex justify-center items-center min-h-[200px] text-red-500">
+          Error loading {title.toLowerCase()}: {error}
+        </div>
+      </div>
+    );
+  }
+
+  if (products.length === 0) {
+    return (
+      <div className="product-display flex flex-row p-6">
+        <TitleSection />
+        <div className="flex-1 flex justify-center items-center min-h-[200px] text-yellow-600">
+          No {title.toLowerCase()} found.
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="product-display flex flex-row p-6">
-      {/* Custom Build Section */}
-      <div className=" mr-12 w-full mx-auto px-4 sm:px-6 lg:px-8 text-center flex flex-col items-center bg-amber-800">
-        <h2 className="text-4xl font-bold text-gray-800 mb-2 mt-30">{title}</h2>
-        <Link
-          to="/products"
-          className="text-indigo-600 hover:underline text-lg"
-        >
-          See All Products
-        </Link>
-      </div>
-
-      <div>
-        <Carousel>
+      <TitleSection />
+      <div className="flex-1">
+        <Carousel className="w-full">
           <CarouselContent>
             {products.map((product, index) => (
               <CarouselItem
                 key={index}
-                className="flex justify-center basis-1/4"
+                className="flex justify-center basis-full sm:basis-1/2 md:basis-1/3 lg:basis-1/4"
               >
                 <div
-                  key={product.id}
                   onClick={() => setSelectedProduct(product)}
-                  className="bg-white rounded-lg shadow-md hover:shadow-lg transition p-4 cursor-pointer flex flex-col"
+                  className="bg-white rounded-lg shadow-md hover:shadow-lg transition p-4 cursor-pointer flex flex-col w-full max-w-[300px]"
                 >
                   <img
-                    src={product.imageUrl}
-                    alt={product.title}
+                    src={product.main_image || `https://via.placeholder.com/150?text=${encodeURIComponent(product.name)}`}
+                    alt={product.name}
                     className="rounded-md mb-4 object-cover h-40 w-full bg-green-700"
+                    onError={(e) => {
+                      e.target.onerror = null;
+                      e.target.src = `https://via.placeholder.com/150?text=${encodeURIComponent(product.name)}`;
+                    }}
                   />
                   <div className="flex flex-col flex-grow justify-between">
-                    {product.inStock && (
+                    {product.stock > 0 && (
                       <span className="text-green-500 text-sm font-semibold mb-2 select-none">
                         In Stock
                       </span>
                     )}
                     <h4 className="select-none text-lg font-medium text-gray-800 mb-1 overflow-hidden text-ellipsis">
-                      {product.title}
+                      {product.name}
                     </h4>
                     <span className="text-gray-500 text-sm mb-2 select-none">
-                      Reviews ({product.reviews})
+                      Reviews ({product.rating || 0})
                     </span>
                     <div className="mt-auto">
                       <div className="flex items-center space-x-2">
                         <span className="line-through text-gray-400 text-sm select-none">
-                          {product.oldPrice}
+                          ₱{typeof product.original_price === 'number'
+                            ? product.original_price.toLocaleString()
+                            : parseFloat(product.original_price).toLocaleString()}
                         </span>
                         <span className="text-indigo-600 font-bold text-lg select-none">
-                          {product.price}
+                          ₱{typeof product.selling_price === 'number'
+                            ? product.selling_price.toLocaleString()
+                            : parseFloat(product.selling_price).toLocaleString()}
                         </span>
                       </div>
                     </div>
@@ -191,10 +148,9 @@ const BuildLaps = ({set}) => {
               </CarouselItem>
             ))}
           </CarouselContent>
-          <CarouselPrevious />
-          <CarouselNext />
+          <CarouselPrevious className="left-1" />
+          <CarouselNext className="right-1" />
         </Carousel>
-
         {selectedProduct && (
           <ProductModal
             product={selectedProduct}
@@ -204,6 +160,6 @@ const BuildLaps = ({set}) => {
       </div>
     </div>
   );
-}
+};
 
 export default BuildLaps;

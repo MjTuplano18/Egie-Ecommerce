@@ -3,7 +3,7 @@ from rest_framework import serializers
 from .models import (
     ProductCategory, Brand, Color, Product, ProductImage,
     AttributeType, AttributeOption, ProductAttribute, Discount,
-    RatingReview
+    RatingReview, ProductPerformance
 )
 
 class ProductCategorySerializer(serializers.ModelSerializer):
@@ -14,11 +14,8 @@ class ProductCategorySerializer(serializers.ModelSerializer):
         fields = ['id', 'name', 'image', 'image_url', 'parent']
 
     def get_image_url(self, obj):
-        try:
-            if obj.image and hasattr(obj.image, 'url'):
-                return obj.image.url
-        except Exception:
-            pass
+        if obj.image:
+            return obj.image.url
         return None
 
 class BrandSerializer(serializers.ModelSerializer):
@@ -77,54 +74,13 @@ class ProductListSerializer(serializers.ModelSerializer):
 
     def get_main_image(self, obj):
         feature_image = obj.images.filter(is_feature=True).first()
-        if feature_image:
-            return feature_image.image.url
+        if feature_image and feature_image.image:
+             return feature_image.image.url
+
+        first_image =obj.images.first()
+        if first_image and first_image.image:
+            return first_image.image.url
         return None
-
-class ProductDetailSerializer(serializers.ModelSerializer):
-    brand = BrandSerializer(read_only=True)
-    category = ProductCategorySerializer(read_only=True)
-    color = ColorSerializer(read_only=True)
-    images = ProductImageSerializer(many=True, read_only=True)
-    attributes = ProductAttributeSerializer(many=True, read_only=True)
-
-    class Meta:
-        model = Product
-        fields = [
-            'id', 'slug', 'name', 'description', 'short_description',
-            'original_price', 'selling_price', 'stock', 'brand', 'category',
-            'color', 'is_featured', 'is_new_arrival', 'is_top_seller',
-            'rating', 'ratings_count', 'sales_count', 'specifications',
-            'sub_category', 'images', 'attributes', 'added_at', 'updated_at'
-        ]
-
-class ProductSerializer(serializers.ModelSerializer):
-    category_name = serializers.CharField(source='category.name', read_only=True)
-    brand_name = serializers.CharField(source='brand.name', read_only=True)
-    color_name = serializers.CharField(source='color.name', read_only=True) if Color else None
-    images = ProductImageSerializer(many=True, read_only=True)
-    attributes = ProductAttributeSerializer(source='attributes.all', many=True, read_only=True)
-    average_rating = serializers.SerializerMethodField()
-    review_count = serializers.SerializerMethodField()
-
-    class Meta:
-        model = Product
-        fields = [
-            'id', 'name', 'slug', 'description', 'original_price',
-            'selling_price', 'stock', 'brand', 'brand_name',
-            'category', 'category_name', 'color', 'color_name',
-            'added_at', 'updated_at', 'is_active', 'images',
-            'attributes', 'average_rating', 'review_count'
-        ]
-
-    def get_average_rating(self, obj):
-        reviews = obj.reviews.all()
-        if reviews:
-            return sum(review.rating for review in reviews) / reviews.count()
-        return 0
-
-    def get_review_count(self, obj):
-        return obj.reviews.count()
 
 class RatingReviewSerializer(serializers.ModelSerializer):
     user_name = serializers.CharField(source='user.username', read_only=True)
@@ -133,8 +89,20 @@ class RatingReviewSerializer(serializers.ModelSerializer):
         model = RatingReview
         fields = ['id', 'user_name', 'product', 'rating', 'review', 'created_at']
 
-class ProductDetailSerializer(ProductSerializer):
+class ProductDetailSerializer(serializers.ModelSerializer):
+    brand = BrandSerializer(read_only=True)
+    category = ProductCategorySerializer(read_only=True)
+    color = ColorSerializer(read_only=True)
+    images = ProductImageSerializer(many=True, read_only=True)
+    attributes = ProductAttributeSerializer(many=True, read_only=True)
     reviews = RatingReviewSerializer(many=True, read_only=True, source='reviews')
 
-    class Meta(ProductSerializer.Meta):
-        fields = ProductSerializer.Meta.fields + ['reviews']
+    class Meta:
+        model = Product
+        fields = [
+            'id', 'slug', 'name', 'description', 'short_description',
+            'original_price', 'selling_price', 'stock', 'brand', 'category',
+            'color', 'is_featured', 'is_new_arrival', 'is_top_seller',
+            'rating', 'ratings_count', 'sales_count', 'specifications',
+            'sub_category', 'images', 'attributes', 'added_at', 'updated_at', 'reviews'
+        ]
