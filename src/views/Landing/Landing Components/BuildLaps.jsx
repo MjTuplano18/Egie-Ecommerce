@@ -55,7 +55,7 @@ const BuildLaps = ({ set }) => {
         to={`/products?category=${encodeURIComponent(categoryName)}`}
         className="text-indigo-600 hover:underline text-lg"
       >
-        See All Products
+        See All {title}
       </Link>
     </div>
   );

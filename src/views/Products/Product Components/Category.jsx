@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { useNavigate, useLocation } from "react-router-dom";
 import {
   Carousel,
   CarouselContent,
@@ -8,6 +9,8 @@ import {
 } from "@/components/ui/carousel";
 
 const Category = ({ selectedCategory, setSelectedCategory }) => {
+  const navigate = useNavigate();
+  const location = useLocation();
   const [categories, setCategories] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -34,14 +37,14 @@ const Category = ({ selectedCategory, setSelectedCategory }) => {
             'Accept': 'application/json'
           }
         });
-        
+
         if (!response.ok) {
           throw new Error(`API error: ${response.status} ${response.statusText}`);
         }
-        
+
         const data = await response.json();
         console.log('Categories data in Product Category component:', data);
-        
+
         if (!Array.isArray(data) || data.length === 0) {
           throw new Error('No categories found or invalid data format');
         }
@@ -49,15 +52,15 @@ const Category = ({ selectedCategory, setSelectedCategory }) => {
         // Process categories with appropriate images
         const processedCategories = data.map(category => {
           // Find matching image or use placeholder
-          const imageKey = Object.keys(categoryImages).find(key => 
+          const imageKey = Object.keys(categoryImages).find(key =>
             category.name.toLowerCase().includes(key)
           );
-          
+
           return {
             id: category.id,
             name: category.name,
-            imageUrl: category.image_url || 
-                     (imageKey ? categoryImages[imageKey] : 
+            imageUrl: category.image_url ||
+                     (imageKey ? categoryImages[imageKey] :
                      `https://via.placeholder.com/150?text=${encodeURIComponent(category.name)}`)
           };
         });
@@ -101,8 +104,32 @@ const Category = ({ selectedCategory, setSelectedCategory }) => {
     );
   }
 
+  // Function to clear the category filter
+  const clearCategoryFilter = () => {
+    setSelectedCategory(null);
+
+    // Remove category from URL
+    const searchParams = new URLSearchParams(location.search);
+    searchParams.delete('category');
+    navigate(`${location.pathname}${searchParams.toString() ? `?${searchParams.toString()}` : ''}`, { replace: true });
+  };
+
   return (
     <div className="categories-container mt-4 w-[98%]">
+      <div className="flex justify-between items-center mb-2">
+        <h3 className="text-lg font-semibold">Categories</h3>
+        {selectedCategory && (
+          <button
+            onClick={clearCategoryFilter}
+            className="text-sm text-blue-600 hover:text-blue-800 flex items-center"
+          >
+            <span>Clear Filter</span>
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 ml-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        )}
+      </div>
       <Carousel>
         <CarouselContent>
           {categories.map((category, index) => (
@@ -111,7 +138,15 @@ const Category = ({ selectedCategory, setSelectedCategory }) => {
               className="flex justify-center basis-1/6.5 width-16.5"
             >
               <div
-                onClick={() => setSelectedCategory(category.name)}
+                onClick={() => {
+                  // Update the selected category
+                  setSelectedCategory(category.name);
+
+                  // Update URL with the selected category
+                  const searchParams = new URLSearchParams(location.search);
+                  searchParams.set('category', category.name);
+                  navigate(`${location.pathname}?${searchParams.toString()}`, { replace: true });
+                }}
                 className={`bg-white border rounded-lg text-center p-1 transition-shadow duration-300 hover:shadow-lg flex flex-row cursor-pointer ${
                   selectedCategory === category.name
                     ? "border-green-500"
