@@ -42,6 +42,11 @@ class ProductViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         queryset = super().get_queryset()
 
+        # Filter by category name
+        category_name = self.request.query_params.get('category__name')
+        if category_name:
+            queryset = queryset.filter(category__name=category_name)
+
         min_price = self.request.query_params.get('min_price')
         max_price = self.request.query_params.get('max_price')
         if min_price:
@@ -117,6 +122,28 @@ class CategoryViewSet(viewsets.ModelViewSet):
     def products(self, request, pk=None):
         category = self.get_object()
         products = Product.objects.filter(category=category, is_active=True)
+
+        # Apply additional filters if provided
+        min_price = request.query_params.get('min_price')
+        max_price = request.query_params.get('max_price')
+        if min_price:
+            products = products.filter(selling_price__gte=min_price)
+        if max_price:
+            products = products.filter(selling_price__lte=max_price)
+
+        rating = request.query_params.get('rating__gte')
+        if rating:
+            products = products.filter(rating__gte=rating)
+
+        brand_names = request.query_params.get('brand_names')
+        if brand_names:
+            brands = [name.strip() for name in brand_names.split(',')]
+            products = products.filter(brand__name__in=brands)
+
+        in_stock = request.query_params.get('in_stock')
+        if in_stock == 'true':
+            products = products.filter(stock__gt=0)
+
         page = self.paginate_queryset(products)
         if page is not None:
             serializer = ProductListSerializer(page, many=True)
@@ -159,5 +186,54 @@ def search_products(request):
         Q(category__name__icontains=query),
         is_active=True
     )
+    serializer = ProductListSerializer(products, many=True)
+    return Response(serializer.data)
+
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def products_by_category_name(request):
+    category_name = request.query_params.get('name', '')
+    if not category_name:
+        return Response({'message': 'Category name parameter is required'}, status=status.HTTP_400_BAD_REQUEST)
+
+    # Get the category
+    try:
+        category = ProductCategory.objects.get(name=category_name)
+    except ProductCategory.DoesNotExist:
+        return Response({'message': f'Category "{category_name}" not found'}, status=status.HTTP_404_NOT_FOUND)
+
+    # Get products for this category
+    products = Product.objects.filter(category=category, is_active=True)
+
+    # Apply additional filters
+    min_price = request.query_params.get('min_price')
+    max_price = request.query_params.get('max_price')
+    if min_price:
+        products = products.filter(selling_price__gte=min_price)
+    if max_price:
+        products = products.filter(selling_price__lte=max_price)
+
+    rating = request.query_params.get('rating__gte')
+    if rating:
+        products = products.filter(rating__gte=rating)
+
+    brand_names = request.query_params.get('brand_names')
+    if brand_names:
+        brands = [name.strip() for name in brand_names.split(',')]
+        products = products.filter(brand__name__in=brands)
+
+    in_stock = request.query_params.get('in_stock')
+    if in_stock == 'true':
+        products = products.filter(stock__gt=0)
+
+    # Paginate results if needed
+    paginator = PageNumberPagination()
+    paginator.page_size = 12
+    page = paginator.paginate_queryset(products, request)
+
+    if page is not None:
+        serializer = ProductListSerializer(page, many=True)
+        return paginator.get_paginated_response(serializer.data)
+
     serializer = ProductListSerializer(products, many=True)
     return Response(serializer.data)

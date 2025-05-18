@@ -20,32 +20,34 @@ const BuildLaps = ({ set }) => {
   const title = set === "two" ? "Custom Builds" : "Laptops";
 
   useEffect(() => {
-    const fetchProducts = async () => {
-      try {
-        setLoading(true);
-        const response = await fetch(`http://localhost:8000/api/products/?search=${categoryName}`, {
-          method: 'GET'
-        });
+  const fetchProducts = async () => {
+    try {
+      setLoading(true);
+      console.log(`Fetching products for category: ${categoryName}`);
+      const response = await fetch(`http://localhost:8000/api/products/?search=${categoryName}`, {
+        method: 'GET'
+      });
 
-        if (!response.ok) {
-          throw new Error(`API error: ${response.status} ${response.statusText}`);
-        }
-
-        const data = await response.json();
-        const productList = data.results || data || [];
-        setProducts(productList);
-        setError(null);
-      } catch (err) {
-        console.error(`Error fetching ${categoryName}:`, err);
-        setError(err.message);
-        setProducts([]);
-      } finally {
-        setLoading(false);
+      if (!response.ok) {
+        throw new Error(`API error: ${response.status} ${response.statusText}`);
       }
-    };
 
-    fetchProducts();
-  }, [categoryName, set]);
+      const data = await response.json();
+      console.log('API response data:', data);
+      const productList = data.results || data || [];
+      setProducts(productList);
+      setError(null);
+    } catch (err) {
+      console.error(`Error fetching ${categoryName}:`, err);
+      setError(err.message);
+      setProducts([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  fetchProducts();
+}, [categoryName, set]);
 
   // Common title section that stays consistent across all states
   const TitleSection = () => (

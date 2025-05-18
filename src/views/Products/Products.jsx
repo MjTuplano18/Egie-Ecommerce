@@ -26,8 +26,35 @@ const Products = () => {
     if (categoryParam) {
       console.log('Category from URL:', categoryParam);
       setSelectedCategory(categoryParam);
+    } else {
+      // Reset category if no category parameter in URL
+      setSelectedCategory(null);
     }
   }, [location.search]);
+
+  // Handle page refresh - clear category selection if page is refreshed
+  useEffect(() => {
+    // Check if this is a page refresh
+    const pageAccessedByReload = (
+      (window.performance.navigation && window.performance.navigation.type === 1) ||
+      window.performance.getEntriesByType('navigation')
+        .map((nav) => nav.type)
+        .includes('reload')
+    );
+
+    if (pageAccessedByReload) {
+      console.log('Page was refreshed - clearing category filter');
+      setSelectedCategory(null);
+
+      // Also clear the URL parameter if it exists
+      const searchParams = new URLSearchParams(location.search);
+      if (searchParams.has('category')) {
+        searchParams.delete('category');
+        const newUrl = `${location.pathname}${searchParams.toString() ? `?${searchParams.toString()}` : ''}`;
+        window.history.replaceState({}, '', newUrl);
+      }
+    }
+  }, []);
 
   const handleFilterChange = (updatedFilters) => {
     setFilters((prev) => ({

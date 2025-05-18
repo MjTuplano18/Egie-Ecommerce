@@ -54,16 +54,16 @@ const ProductGrid = ({ selectedCategory, filters }) => {
         }
 
         console.log('Filter params:', Object.fromEntries(filterParams));
-        
+
         // Direct fetch without authentication headers
         const response = await fetch(`http://localhost:8000/api/products/?${filterParams.toString()}`, {
           method: 'GET'
         });
-        
+
         if (!response.ok) {
           throw new Error(`API error: ${response.status} ${response.statusText}`);
         }
-        
+
         const data = await response.json();
         console.log('Products API response:', data);
 
@@ -152,8 +152,8 @@ const ProductGrid = ({ selectedCategory, filters }) => {
                   {product.name}
                 </p>
                 <p className="text-lg font-bold text-red-600 select-none">
-                  ₱{typeof product.selling_price === 'number' 
-                    ? product.selling_price.toLocaleString() 
+                  ₱{typeof product.selling_price === 'number'
+                    ? product.selling_price.toLocaleString()
                     : parseFloat(product.selling_price).toLocaleString()}
                 </p>
                 <p className="text-gray-500 text-sm select-none">
