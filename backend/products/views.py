@@ -9,7 +9,7 @@ from django_filters.rest_framework import DjangoFilterBackend
 
 from .models import (
     ProductCategory, Brand, Color, Product, ProductImage,
-    AttributeType, AttributeOption, ProductAttribute, Discount
+    AttributeType, AttributeOption, ProductAttribute, ProductVariation, Discount
 )
 from .serializers import (
     ProductCategorySerializer, BrandSerializer, ColorSerializer,
@@ -237,3 +237,4 @@ def products_by_category_name(request):
 
     serializer = ProductListSerializer(products, many=True)
     return Response(serializer.data)
+

@@ -32,7 +32,7 @@ class Product(models.Model):
     short_description = models.TextField(blank=True, help_text="A brief description for product listings")
     original_price = models.DecimalField(max_digits=10, decimal_places=2)
     selling_price = models.DecimalField(max_digits=10, decimal_places=2)
-    stock = models.IntegerField()
+    stock = models.IntegerField(help_text="Base stock for product without variations. If variations exist, their individual stocks will be used instead.")
     brand = models.ForeignKey(Brand, on_delete=models.CASCADE, related_name='products')
     category = models.ForeignKey(ProductCategory, on_delete=models.CASCADE, related_name='products')
     color = models.ForeignKey(Color, on_delete=models.SET_NULL, null=True, blank=True, related_name='products')
@@ -75,6 +75,18 @@ class Product(models.Model):
             return 0
         return self.rating
 
+    @property
+    def total_stock(self):
+        """
+        Calculate total available stock.
+        If variations exist, return the sum of all variation stocks.
+        Otherwise, return the base product stock.
+        """
+        variations = self.variations.all()
+        if variations.exists():
+            return sum(variation.stock for variation in variations)
+        return self.stock
+
 class ProductImage(models.Model):
     product = models.ForeignKey(Product, on_delete=models.CASCADE, related_name='images')
     image = models.ImageField(upload_to='product_images/')
@@ -110,15 +122,46 @@ class AttributeOption(models.Model):
     def __str__(self):
         return f"{self.type.name}: {self.value}"
 
+class ProductVariation(models.Model):
+    product = models.ForeignKey(Product, on_delete=models.CASCADE, related_name='variations')
+    name = models.CharField(max_length=255, help_text="Variation name (e.g., '8GB/256SSD')")
+    price_adjustment = models.DecimalField(max_digits=10, decimal_places=2, default=0.00,
+                                          help_text="Amount to add/subtract from base product price")
+    stock = models.PositiveIntegerField(default=0, help_text="Available stock for this specific variation")
+    is_default = models.BooleanField(default=False)
+
+    class Meta:
+        unique_together = ('product', 'name')
+
+    def __str__(self):
+        return f"{self.product.name} - {self.name}"
+
+    def save(self, *args, **kwargs):
+        # If this is marked as default, unmark other variations
+        if self.is_default:
+            ProductVariation.objects.filter(product=self.product).exclude(id=self.id).update(is_default=False)
+        # If no default exists for this product, mark this as default
+        elif not ProductVariation.objects.filter(product=self.product, is_default=True).exists():
+            self.is_default = True
+        super().save(*args, **kwargs)
+
+    @property
+    def final_price(self):
+        """Calculate the final price for this variation"""
+        return self.product.selling_price + self.price_adjustment
+
+
 class ProductAttribute(models.Model):
     product = models.ForeignKey(Product, on_delete=models.CASCADE, related_name='attributes')
     attribute = models.ForeignKey(AttributeOption, on_delete=models.CASCADE)
+    variation = models.ForeignKey(ProductVariation, on_delete=models.CASCADE, related_name='attributes', null=True, blank=True)
 
     class Meta:
-        unique_together = ('product', 'attribute')
+        unique_together = ('product', 'attribute', 'variation')
 
     def __str__(self):
-        return f"{self.product.name} - {self.attribute}"
+        variation_name = f" ({self.variation.name})" if self.variation else ""
+        return f"{self.product.name}{variation_name} - {self.attribute}"
 
 class ProductInventory(models.Model):
     product = models.ForeignKey(Product, on_delete=models.CASCADE, related_name='inventory')

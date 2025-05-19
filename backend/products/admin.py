@@ -1,6 +1,6 @@
 from django.contrib import admin
 from django.utils.html import format_html
-from .models import ProductCategory, Brand, Color, Product, ProductImage, AttributeType, AttributeOption, ProductAttribute, ProductInventory,Discount , RatingReview , ProductPerformance
+from .models import ProductCategory, Brand, Color, Product, ProductImage, AttributeType, AttributeOption, ProductAttribute, ProductVariation, ProductInventory, Discount, RatingReview, ProductPerformance
 
 class ProductInventoryInline(admin.TabularInline):
     model = ProductInventory
@@ -12,15 +12,22 @@ class ProductImageInline(admin.TabularInline):
     model = ProductImage
     extra = 4
     readonly_fields = ['image_preview']
-    
+
     def image_preview(self, obj):
         if obj.image:
             return format_html('<img src="{}" width="150" height="150" style="object-fit: contain;" />', obj.image.url)
         return "No image"
 
+class ProductVariationInline(admin.TabularInline):
+    model = ProductVariation
+    extra = 1
+    fields = ('name', 'price_adjustment', 'stock', 'is_default')
+
 class ProductAttributeInline(admin.TabularInline):
     model = ProductAttribute
     extra = 1
+    fields = ('attribute', 'variation')
+    autocomplete_fields = ['attribute', 'variation']
 @admin.register(Product)
 class ProductAdmin(admin.ModelAdmin):
     list_display = (
@@ -33,7 +40,7 @@ class ProductAdmin(admin.ModelAdmin):
     )
     search_fields = ('name', 'description', 'short_description', 'brand__name')
     prepopulated_fields = {'slug': ('name',)}
-    inlines = [ProductImageInline, ProductAttributeInline, ProductInventoryInline]
+    inlines = [ProductImageInline, ProductVariationInline, ProductAttributeInline, ProductInventoryInline]
     filter_horizontal = ('bundles', 'compatible_builds')
     fieldsets = (
         (None, {
@@ -89,6 +96,12 @@ class AttributeOptionAdmin(admin.ModelAdmin):
     list_display = ('type', 'value')
     list_filter = ('type',)
     search_fields = ('value',)
+
+@admin.register(ProductVariation)
+class ProductVariationAdmin(admin.ModelAdmin):
+    list_display = ('product', 'name', 'price_adjustment', 'stock', 'is_default')
+    list_filter = ('is_default',)
+    search_fields = ('product__name', 'name')
 
 @admin.register(ProductInventory)
 class ProductInventoryAdmin(admin.ModelAdmin):
