@@ -1,6 +1,12 @@
 from django.contrib import admin
 from django.utils.html import format_html
-from .models import ProductCategory, Brand, Color, Product, ProductImage, AttributeType, AttributeOption, ProductAttribute, ProductVariation, ProductInventory, Discount, RatingReview, ProductPerformance
+from django import forms
+from .models import (
+    ProductCategory, Brand, Color, Product, ProductImage,
+    AttributeType, AttributeOption, ProductAttribute, ProductVariation,
+    ProductInventory, Discount, RatingReview, ProductPerformance,
+    ProductSpecification
+)
 
 class ProductInventoryInline(admin.TabularInline):
     model = ProductInventory
@@ -28,6 +34,13 @@ class ProductAttributeInline(admin.TabularInline):
     extra = 1
     fields = ('attribute', 'variation')
     autocomplete_fields = ['attribute', 'variation']
+
+class ProductSpecificationInline(admin.TabularInline):
+    model = ProductSpecification
+    extra = 3
+    fields = ('name', 'value')
+    verbose_name = "Specification"
+    verbose_name_plural = "Specifications"
 @admin.register(Product)
 class ProductAdmin(admin.ModelAdmin):
     list_display = (
@@ -40,13 +53,13 @@ class ProductAdmin(admin.ModelAdmin):
     )
     search_fields = ('name', 'description', 'short_description', 'brand__name')
     prepopulated_fields = {'slug': ('name',)}
-    inlines = [ProductImageInline, ProductVariationInline, ProductAttributeInline, ProductInventoryInline]
+    inlines = [ProductImageInline, ProductVariationInline, ProductAttributeInline, ProductSpecificationInline, ProductInventoryInline]
     filter_horizontal = ('bundles', 'compatible_builds')
     fieldsets = (
         (None, {
             'fields': (
                 'name', 'slug', 'brand', 'category', 'sub_category', 'color',
-                'description', 'short_description', 'specifications', 'warranty'
+                'description', 'short_description', 'warranty'
             )
         }),
         ('Pricing & Stock', {
@@ -120,6 +133,13 @@ class RatingReviewAdmin(admin.ModelAdmin):
     list_display = ('user', 'product', 'rating', 'created_at')
     search_fields = ('user__username', 'product__name')
     list_filter = ('rating', 'created_at')
+
+@admin.register(ProductSpecification)
+class ProductSpecificationAdmin(admin.ModelAdmin):
+    list_display = ('product', 'name', 'value')
+    list_filter = ('name',)
+    search_fields = ('product__name', 'name', 'value')
+    autocomplete_fields = ['product']
 
 @admin.register(ProductPerformance)
 class ProductPerformanceAdmin(admin.ModelAdmin):

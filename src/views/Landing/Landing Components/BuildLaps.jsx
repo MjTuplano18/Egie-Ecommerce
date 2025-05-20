@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import axios from "axios";
 import ProductModal from "../../Products/ProductGrid/ProductModal/ProductModal";
 import { Link } from "react-router-dom";
 import {
@@ -24,22 +25,18 @@ const BuildLaps = ({ set }) => {
     try {
       setLoading(true);
       console.log(`Fetching products for category: ${categoryName}`);
-      const response = await fetch(`http://localhost:8000/api/products/?search=${categoryName}`, {
-        method: 'GET'
+      const response = await axios.get(`http://localhost:8000/api/products/`, {
+        params: { search: categoryName }
       });
 
-      if (!response.ok) {
-        throw new Error(`API error: ${response.status} ${response.statusText}`);
-      }
-
-      const data = await response.json();
+      const data = response.data;
       console.log('API response data:', data);
       const productList = data.results || data || [];
       setProducts(productList);
       setError(null);
     } catch (err) {
       console.error(`Error fetching ${categoryName}:`, err);
-      setError(err.message);
+      setError(err.response?.data?.message || err.message);
       setProducts([]);
     } finally {
       setLoading(false);
@@ -48,6 +45,21 @@ const BuildLaps = ({ set }) => {
 
   fetchProducts();
 }, [categoryName, set]);
+
+  // Function to fetch detailed product data when a product is clicked
+  const fetchProductDetails = async (productSlug) => {
+    try {
+      console.log('Fetching detailed product data for slug:', productSlug);
+      const response = await axios.get(`http://localhost:8000/api/products/${productSlug}/`);
+
+      const detailedProduct = response.data;
+      console.log('Detailed product data:', detailedProduct);
+      return detailedProduct;
+    } catch (error) {
+      console.error('Error fetching product details:', error);
+      return null;
+    }
+  };
 
   // Common title section that stays consistent across all states
   const TitleSection = () => (
@@ -107,7 +119,16 @@ const BuildLaps = ({ set }) => {
                 className="flex justify-center basis-full sm:basis-1/2 md:basis-1/3 lg:basis-1/4"
               >
                 <div
-                  onClick={() => setSelectedProduct(product)}
+                  onClick={async () => {
+                    // First set the basic product data to show something immediately
+                    setSelectedProduct(product);
+
+                    // Then fetch detailed product data including variations
+                    const detailedProduct = await fetchProductDetails(product.slug);
+                    if (detailedProduct) {
+                      setSelectedProduct(detailedProduct);
+                    }
+                  }}
                   className="bg-white rounded-lg shadow-md hover:shadow-lg transition p-4 cursor-pointer flex flex-col w-full max-w-[300px]"
                 >
                   <img

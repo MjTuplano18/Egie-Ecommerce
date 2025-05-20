@@ -1,5 +1,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import { Link, useNavigate } from "react-router-dom";
+import axios from "axios";
+import styled from "styled-components";
 import {
   FaArrowLeft,
   FaArrowRight,
@@ -17,10 +19,36 @@ import Slider from "react-slick";
 import { toast } from "sonner";
 import { useCart } from "@/contexts/CartContext";
 
+// Styled components for slider
+const SliderContainer = styled.div`
+  position: relative;
+
+  .slick-arrow {
+    z-index: 20;
+  }
+
+  .slick-prev, .slick-next {
+    &:before {
+      color: #333;
+    }
+  }
+
+  .product-main-slider {
+    margin-bottom: 15px;
+  }
+
+  .product-thumbnail-slider {
+    .slick-slide {
+      padding: 2px;
+    }
+  }
+`;
+
 const CustomNextArrow = ({ onClick }) => (
   <div
     className="absolute top-1/2 right-[-20px] transform -translate-y-1/2 bg-white rounded-full p-2 shadow-md cursor-pointer hover:bg-gray-200 transition"
     onClick={onClick}
+    style={{ zIndex: 20 }}
   >
     <FaArrowRight />
   </div>
@@ -30,6 +58,7 @@ const CustomPrevArrow = ({ onClick }) => (
   <div
     className="absolute top-1/2 left-[-20px] transform -translate-y-1/2 bg-white rounded-full p-2 shadow-md cursor-pointer hover:bg-gray-200 transition"
     onClick={onClick}
+    style={{ zIndex: 20 }}
   >
     <FaArrowLeft />
   </div>
@@ -38,13 +67,15 @@ const CustomPrevArrow = ({ onClick }) => (
 const TopDetails = ({ product }) => {
   const navigate = useNavigate();
   const { addToCart } = useCart();
-  const stock = product?.stock || 1404;
+  const stock = product?.stock || 100;
   const [quantity, setQuantity] = useState(1);
   const [selectedVariation, setSelectedVariation] = useState('');
   const [selectedMonitor, setSelectedMonitor] = useState('');
 
   const [currentImage, setCurrentImage] = useState(0);
-  const images = [
+
+  // Default images if product images are not available
+  const defaultImages = [
     "image1.jpg",
     "image2.jpg",
     "image3.jpg",
@@ -54,39 +85,160 @@ const TopDetails = ({ product }) => {
     "image7.jpg",
   ];
 
+  // Get product images or use defaults
+  const productImages = React.useMemo(() => {
+    let images = [];
+
+    // Check if product has image_urls array
+    if (product?.image_urls && Array.isArray(product.image_urls) && product.image_urls.length > 0) {
+      console.log('Using image_urls array:', product.image_urls);
+      // Filter out any null, undefined or empty strings
+      images = product.image_urls.filter(img => img);
+    }
+    // Check if product has images array and we don't have images yet
+    else if (product?.images && Array.isArray(product.images) && product.images.length > 0) {
+      console.log('Using images array:', product.images);
+      // Filter out any null, undefined or empty strings
+      images = product.images.filter(img => img);
+    }
+    // Check if product has product_images array and we don't have images yet
+    else if (product?.product_images && Array.isArray(product.product_images) && product.product_images.length > 0) {
+      console.log('Using product_images array:', product.product_images);
+      // Extract image URLs and filter out any null, undefined or empty strings
+      images = product.product_images
+        .map(img => img.image_url || img.url || img.image || img)
+        .filter(img => img);
+    }
+    // Fallback to main_image if available and we don't have images yet
+    else if (product?.main_image) {
+      console.log('Using main_image as fallback:', product.main_image);
+      images = [product.main_image];
+    }
+    // Last resort: use just one default image
+    else {
+      console.log('Using default image as last resort');
+      images = [defaultImages[0]];
+    }
+
+    // Remove duplicates and log the final array
+    const uniqueImages = [...new Set(images)];
+    console.log('Final processed images:', uniqueImages, 'Count:', uniqueImages.length);
+    return uniqueImages;
+  }, [product]);
+
   const [nav1, setNav1] = useState(null);
   const [nav2, setNav2] = useState(null);
   let sliderRef1 = useRef(null);
   let sliderRef2 = useRef(null);
 
+  // Initialize sliders only when there are multiple images
   useEffect(() => {
-    setNav1(sliderRef1.current);
-    setNav2(sliderRef2.current);
-  }, []);
+    if (productImages.length > 1) {
+      console.log('Setting up sliders for', productImages.length, 'images');
+      setNav1(sliderRef1.current);
+      setNav2(sliderRef2.current);
+    } else {
+      console.log('Only one image, not initializing sliders');
+      // Reset both nav states when there's only one image
+      setNav1(null);
+      setNav2(null);
+    }
+  }, [productImages.length]);
+
+  // Debug product information
+  useEffect(() => {
+    console.log('TopDetails - Product info:', {
+      id: product?.id,
+      name: product?.name,
+      images: product?.images,
+      image_urls: product?.image_urls,
+      product_images: product?.product_images,
+      main_image: product?.main_image,
+      processedImages: productImages,
+      specs: product?.specs,
+      specifications: product?.specifications,
+      spec_entries: product?.spec_entries
+    });
+  }, [product, productImages]);
+
+  // Get variations from product if available, otherwise use empty array
+  const variations = product?.variations?.length > 0
+    ? product.variations.map((variation) => ({
+        id: variation.id,
+        name: variation.name,
+        price: variation.final_price ||
+               (parseFloat(product.selling_price) + parseFloat(variation.price_adjustment || 0)) ||
+               product.selling_price || 0,
+        stock: variation.stock || product.stock || 100,
+        is_default: variation.is_default || false
+      }))
+    : [];
+
+  // Only define monitor sizes for computer products
+  const isComputerProduct = product?.category?.name?.toLowerCase().includes('computer') ||
+                           product?.name?.toLowerCase().includes('pc') ||
+                           product?.name?.toLowerCase().includes('computer');
+
+  const monitorSizes = isComputerProduct ? [
+    { id: 1, size: '18.5 inches', price: 0 },
+    { id: 2, size: '21.5 inches', price: 1500 },
+    { id: 3, size: '23.8 inches', price: 2500 }
+  ] : [];
 
   const handleAddToCart = () => {
-    if (!selectedVariation || !selectedMonitor) {
-      toast.error("Please select all options", {
-        description: "You need to select both variation and monitor size"
+    // If product has variations but none selected, use base price
+    if (variations.length > 0 && !selectedVariation) {
+      // Use base product price and stock
+      console.log('No variation selected, using base product price');
+    }
+
+    // For computer products that need monitors
+    if (isComputerProduct && monitorSizes.length > 0 && !selectedMonitor) {
+      toast.error("Please select a monitor size", {
+        description: "You need to select a monitor size for this computer"
       });
       return;
     }
 
+    // Determine the price based on variation selection
+    let finalPrice = product.selling_price;
+    let variationName = null;
+
+    if (selectedVariation) {
+      // Find the selected variation to get its price
+      const selectedVar = variations.find(v => v.name === selectedVariation);
+      if (selectedVar) {
+        finalPrice = selectedVar.price;
+        variationName = selectedVar.name;
+      }
+    }
+
+    // Convert price to number if it's a string
+    if (typeof finalPrice === 'string') {
+      finalPrice = parseFloat(finalPrice.replace(/[₱,]/g, ''));
+    }
+
     const cartItem = {
       id: product.id,
-      name: product.title || product.productName,
-      price: typeof product.price === 'string' ? parseFloat(product.price.replace(/[₱,]/g, '')) : product.price,
-      image: product.image || images[0],
+      name: product.name || product.title || product.productName,
+      price: finalPrice || 0,
+      image: product.main_image || productImages[0],
       quantity: quantity,
-      variation: selectedVariation,
-      monitorSize: selectedMonitor,
-      specs: {
-        processor: product.specs?.processor || 'Intel Core i9-13900KS',
-        ram: product.specs?.ram || '8GB',
-        storage: product.specs?.storage || '256GB SSD',
-        graphics: product.specs?.graphics || 'Integrated Graphics'
-      },
-      description: product.description || 'High-performance desktop computer with latest generation processor'
+      variation: variationName,
+      monitorSize: selectedMonitor || null,
+      specs: product.spec_entries ?
+        product.spec_entries.reduce((obj, item) => {
+          obj[item.name] = item.value;
+          return obj;
+        }, {}) :
+        product.specifications ||
+        product.specs || {
+          processor: null,
+          ram: null,
+          storage: null,
+          graphics: null
+        },
+      description: product.description || null
     };
 
     addToCart(cartItem);
@@ -96,134 +248,174 @@ const TopDetails = ({ product }) => {
   };
 
   const handleBuyNow = () => {
-    if (!selectedVariation || !selectedMonitor) {
-      toast.error("Please select all options", {
-        description: "You need to select both variation and monitor size"
-      });
-      return;
-    }
-
     handleAddToCart();
-
-    // Save order details to localStorage for checkout
-    const orderDetails = {
-      items: [{
-        id: product.id,
-        name: product.title || product.productName,
-        price: typeof product.price === 'string' ? parseFloat(product.price.replace(/[₱,]/g, '')) : product.price,
-        image: product.image || images[0],
-        quantity: quantity,
-        variation: selectedVariation,
-        monitorSize: selectedMonitor,
-        specs: {
-          processor: product.specs?.processor || 'Intel Core i9-13900KS',
-          ram: product.specs?.ram || '8GB',
-          storage: product.specs?.storage || '256GB SSD',
-          graphics: product.specs?.graphics || 'Integrated Graphics'
-        }
-      }],
-      total: quantity * (typeof product.price === 'string' ? parseFloat(product.price.replace(/[₱,]/g, '')) : product.price),
-      date: new Date().toISOString()
-    };
-
-    localStorage.setItem('orderDetails', JSON.stringify(orderDetails));
     navigate("/cart");
   };
-
-  const variations = [
-    { id: 1, name: 'a8 7680 8G/120ssd', price: 15009 },
-    { id: 2, name: 'a8 7680 8G/256ssd', price: 17741 }
-  ];
-
-  const monitorSizes = [
-    { id: 1, size: '18.5 inches', price: 0 },
-    { id: 2, size: '21.5 inches', price: 1500 },
-    { id: 3, size: '23.8 inches', price: 2500 }
-  ];
 
   return (
     <>
       <div className="flex md:flex-row gap-6 w-[88%] ml-19 mt-10 bg-white p-4 rounded-lg shadow-md pl-7">
-        {/* Image Slider */}
-        <div className="w-full md:w-1/3 mt-15">
-          <Slider
-            asNavFor={nav2}
-            ref={(slider) => (sliderRef1.current = slider)}
-          >
-            {images.map((image, index) => (
-              <div
-                key={index}
-                className="border-2 h-[300px] flex items-center justify-center"
-              >
-                <img
-                  src={image}
-                  alt={`Thumbnail ${index}`}
-                  className="object-contain max-h-full cursor-pointer"
-                  onClick={() => setCurrentImage(index)}
-                />
-              </div>
-            ))}
-          </Slider>
+        {/* Image Display */}
+        <SliderContainer className="w-full md:w-1/3 mt-15 relative">
+          {/* Single Image Display - No Slider */}
+          {productImages.length === 1 ? (
+            <div className="border-2 h-[300px] flex items-center justify-center">
+              <img
+                src={typeof productImages[0] === 'string'
+                  ? productImages[0]
+                  : (productImages[0]?.image_url || productImages[0]?.url || productImages[0]?.image || '')}
+                alt="Product image"
+                className="object-contain max-h-full"
+                onError={(e) => {
+                  console.log(`Image failed to load`);
+                  e.target.onerror = null;
+                  e.target.src = `https://via.placeholder.com/300?text=${encodeURIComponent(product.name || 'Product Image')}`;
+                }}
+              />
+            </div>
+          ) : (
+            /* Multiple Images - Use Sliders */
+            <>
+              {/* Main Slider */}
+              <div className="mb-4 relative z-[1]">
+                <Slider
+                  asNavFor={nav2}
+                  ref={(slider) => (sliderRef1.current = slider)}
+                  className="product-main-slider"
+                  arrows={true}
+                >
+                  {productImages.map((image, index) => {
+                    // Handle different image formats
+                    const imageUrl = typeof image === 'string'
+                      ? image
+                      : (image?.image_url || image?.url || image?.image || '');
 
-          <Slider
-            asNavFor={nav1}
-            ref={(slider) => (sliderRef2.current = slider)}
-            slidesToShow={4}
-            swipeToSlide
-            focusOnSelect
-            arrows
-            nextArrow={<CustomNextArrow />}
-            prevArrow={<CustomPrevArrow />}
-          >
-            {images.map((image, index) => (
-              <div key={index} className="border-2 p-1">
-                <img
-                  src={image}
-                  alt={`Thumbnail ${index}`}
-                  className="object-contain max-h-20 cursor-pointer"
-                  onClick={() => setCurrentImage(index)}
-                />
+                    return (
+                      <div
+                        key={index}
+                        className="border-2 h-[300px] flex items-center justify-center"
+                      >
+                        <img
+                          src={imageUrl}
+                          alt={`Product image ${index + 1}`}
+                          className="object-contain max-h-full cursor-pointer"
+                          onClick={() => setCurrentImage(index)}
+                          onError={(e) => {
+                            console.log(`Image failed to load: ${imageUrl}`);
+                            e.target.onerror = null;
+                            e.target.src = `https://via.placeholder.com/300?text=${encodeURIComponent(product.name || 'Product Image')}`;
+                          }}
+                        />
+                      </div>
+                    );
+                  })}
+                </Slider>
               </div>
-            ))}
-          </Slider>
-        </div>
+
+              {/* Thumbnail Slider */}
+            <div className="mt-4 relative z-[2]">
+              <Slider
+                asNavFor={nav1}
+                ref={(slider) => (sliderRef2.current = slider)}
+                slidesToShow={productImages.length < 4 ? productImages.length : 4}
+                swipeToSlide
+                focusOnSelect
+                arrows={productImages.length > 4}
+                nextArrow={<CustomNextArrow />}
+                prevArrow={<CustomPrevArrow />}
+                className="product-thumbnail-slider"
+          >
+            {productImages.map((image, index) => {
+              // Handle different image formats
+              const imageUrl = typeof image === 'string'
+                ? image
+                : (image?.image_url || image?.url || image?.image || '');
+
+              return (
+                <div key={index} className="border-2 p-1">
+                  <img
+                    src={imageUrl}
+                    alt={`Product ${index + 1}`}
+                    className="object-contain max-h-20 cursor-pointer"
+                    onClick={() => setCurrentImage(index)}
+                    onError={(e) => {
+                      e.target.onerror = null;
+                      e.target.src = `https://via.placeholder.com/80?text=${encodeURIComponent('Thumb')}`;
+                    }}
+                  />
+                </div>
+              );
+            })}
+              </Slider>
+            </div>
+            </>
+          )}
+        </SliderContainer>
 
         {/* Product Details */}
         <div className="w-full md:w-2/3 bg-white p-4 rounded-lg">
           <h1 className="text-2xl font-semibold mb-2">
-            {product?.title || "Intel Core i9-13900KS Special Edition"}
+            {product?.name || product?.title || "Product Name"}
           </h1>
 
           <div className="flex justify-between text-sm text-gray-500 mb-4">
             <div>
-              <span>No Ratings Yet</span> · <span>0 Sold</span>
+              <span>{product?.rating ? `${product.rating} Stars` : "No Ratings Yet"}</span> ·
+              <span>{product?.sold_count ? ` ${product.sold_count} Sold` : " 0 Sold"}</span>
             </div>
             <span className="cursor-pointer hover:underline">Report</span>
           </div>
 
-          {/* Product Description */}
-          <div className="mb-4 text-gray-700">
-            <p>{product?.description || 'Experience unprecedented power with the latest generation processor, perfect for gaming and intensive workloads.'}</p>
-          </div>
+          {/* Product Description - Short version */}
+          {product?.description && (
+            <div className="mb-4 text-gray-700">
+              <p>{product.description.length > 150
+                ? `${product.description.substring(0, 150)}...`
+                : product.description}</p>
+            </div>
+          )}
 
-          {/* Specifications */}
-          <div className="mb-4">
-            <h3 className="font-semibold mb-2">Key Specifications:</h3>
-            <ul className="list-disc list-inside text-gray-700">
-              <li>Processor: {product?.specs?.processor || 'Intel Core i9-13900KS'}</li>
-              <li>RAM: {product?.specs?.ram || '8GB DDR4'}</li>
-              <li>Storage: {product?.specs?.storage || '256GB SSD'}</li>
-              <li>Graphics: {product?.specs?.graphics || 'Integrated Graphics'}</li>
-            </ul>
-          </div>
+
 
           <div className="flex flex-row gap-7">
             <div className="text-2xl font-bold text-green-700 mb-4">
-              ₱{selectedVariation && selectedMonitor ?
-                (variations.find(v => v.name === selectedVariation)?.price +
-                 monitorSizes.find(m => m.size === selectedMonitor)?.price).toLocaleString()
-                : (product?.price || "15,009 - 21,741")}
+              {(() => {
+                // Calculate base price
+                let basePrice = 0;
+
+                if (selectedVariation && variations.length > 0) {
+                  // Use selected variation price
+                  basePrice = variations.find(v => v.name === selectedVariation)?.price || 0;
+                } else {
+                  // Use default product price
+                  basePrice = typeof product?.selling_price === 'number'
+                    ? product.selling_price
+                    : (product?.selling_price ? parseFloat(product.selling_price) : 0);
+                }
+
+                // Add monitor price if selected
+                let monitorPrice = 0;
+                if (selectedMonitor && isComputerProduct) {
+                  const monitor = monitorSizes.find(m => m.size === selectedMonitor);
+                  monitorPrice = monitor ? monitor.price : 0;
+                }
+
+                // Calculate total price
+                const totalPrice = basePrice + monitorPrice;
+
+                return totalPrice > 0
+                  ? `₱${totalPrice.toLocaleString()}`
+                  : (product?.price || "Price not available");
+              })()}
             </div>
+
+            {product?.original_price && product.original_price !== product.selling_price && !selectedVariation && (
+              <div className="text-lg text-gray-500 line-through mb-4">
+                ₱{typeof product.original_price === 'number'
+                  ? product.original_price.toLocaleString()
+                  : parseFloat(product.original_price).toLocaleString()}
+              </div>
+            )}
 
             <div className="flex items-center mb-4 gap-4">
               <div className="flex items-center gap-2">
@@ -236,46 +428,103 @@ const TopDetails = ({ product }) => {
             </div>
           </div>
 
-          {/* Variations */}
-          <div className="mb-4">
-            <label className="block font-medium mb-2">Variation</label>
-            <div className="flex gap-2 flex-wrap">
-              {variations.map((variation) => (
-                <button
-                  key={variation.id}
-                  onClick={() => setSelectedVariation(variation.name)}
-                  className={`border px-3 py-1 rounded ${
-                    selectedVariation === variation.name
-                      ? 'border-green-500 bg-green-50'
-                      : 'hover:border-black'
-                  }`}
-                >
-                  {variation.name}
-                </button>
-              ))}
+          {/* Variations - if available */}
+          {variations.length > 0 && (
+            <div className="mb-4">
+              <div className="flex justify-between items-center mb-2">
+                <label className="block font-medium">Variation</label>
+                {selectedVariation && (
+                  <button
+                    onClick={() => {
+                      setSelectedVariation('');
+                      console.log('Cleared variation selection');
+                    }}
+                    className="text-sm text-green-600 hover:text-green-800 underline"
+                  >
+                    Clear Selection
+                  </button>
+                )}
+              </div>
+              <div className="flex gap-2 flex-wrap">
+                {variations.map((variation) => (
+                  <button
+                    key={variation.id}
+                    onClick={() => {
+                      setSelectedVariation(variation.name);
+                      console.log('Selected variation:', variation.name, 'with price:', variation.price, 'stock:', variation.stock);
+                    }}
+                    disabled={variation.stock <= 0}
+                    className={`border px-3 py-1 rounded ${
+                      selectedVariation === variation.name
+                        ? 'border-green-500 bg-green-50'
+                        : variation.stock <= 0
+                          ? 'border-gray-300 bg-gray-100 text-gray-500 cursor-not-allowed'
+                          : 'hover:border-black'
+                    }`}
+                  >
+                    <div className="flex flex-col">
+                      <span>{variation.name}</span>
+                      <span className="text-sm text-green-600">
+                        ₱{typeof variation.price === 'number'
+                          ? variation.price.toLocaleString()
+                          : parseFloat(variation.price).toLocaleString()}
+                      </span>
+                      <span className="text-xs text-gray-500">
+                        {variation.stock > 0
+                          ? `${variation.stock} available`
+                          : 'Out of stock'}
+                      </span>
+                    </div>
+                  </button>
+                ))}
+              </div>
             </div>
-          </div>
+          )}
 
-          {/* Monitor Size */}
-          <div className="mb-4">
-            <label className="block font-medium mb-2">Monitor</label>
-            <div className="flex gap-2 flex-wrap">
-              {monitorSizes.map((monitor) => (
-                <button
-                  key={monitor.id}
-                  onClick={() => setSelectedMonitor(monitor.size)}
-                  className={`border px-3 py-1 rounded ${
-                    selectedMonitor === monitor.size
-                      ? 'border-green-500 bg-green-50'
-                      : 'hover:border-black'
-                  }`}
-                >
-                  {monitor.size}
-                  {monitor.price > 0 && ` (+₱${monitor.price.toLocaleString()})`}
-                </button>
-              ))}
+          {/* Monitor Sizes - only for computer products */}
+          {isComputerProduct && monitorSizes.length > 0 && (
+            <div className="mb-4">
+              <div className="flex justify-between items-center mb-2">
+                <label className="block font-medium">Monitor Size</label>
+                {selectedMonitor && (
+                  <button
+                    onClick={() => {
+                      setSelectedMonitor('');
+                      console.log('Cleared monitor selection');
+                    }}
+                    className="text-sm text-green-600 hover:text-green-800 underline"
+                  >
+                    Clear Selection
+                  </button>
+                )}
+              </div>
+              <div className="flex gap-2 flex-wrap">
+                {monitorSizes.map((monitor) => (
+                  <button
+                    key={monitor.id}
+                    onClick={() => {
+                      setSelectedMonitor(monitor.size);
+                      console.log('Selected monitor:', monitor.size, 'with price adjustment:', monitor.price);
+                    }}
+                    className={`border px-3 py-1 rounded ${
+                      selectedMonitor === monitor.size
+                        ? 'border-green-500 bg-green-50'
+                        : 'hover:border-black'
+                    }`}
+                  >
+                    <div className="flex flex-col">
+                      <span>{monitor.size}</span>
+                      {monitor.price > 0 && (
+                        <span className="text-sm text-green-600">
+                          +₱{monitor.price.toLocaleString()}
+                        </span>
+                      )}
+                    </div>
+                  </button>
+                ))}
+              </div>
             </div>
-          </div>
+          )}
 
           {/* Quantity */}
           <div className="mb-6 flex flex-row gap-2">
@@ -311,7 +560,7 @@ const TopDetails = ({ product }) => {
             >
               Add To Cart
             </button>
-            
+
             <button
               onClick={handleBuyNow}
               className="flex-1 bg-green-400 text-black font-medium py-2 rounded hover:bg-green-900 hover:text-white transition text-center"

@@ -11,7 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 
-const Reviews = () => {
+const Reviews = ({ product }) => {
   const [reviews, setReviews] = useState([]);
   const [loadingReviews, setLoadingReviews] = useState(true);
   const [newReview, setNewReview] = useState({
@@ -20,19 +20,35 @@ const Reviews = () => {
     comment: "",
   });
 
-  const fetchedReviews = [
+  // Default reviews if none are available from the product
+  const defaultReviews = [
     { author: "Jane D.", rating: 4, comment: "Great value for the price!" },
     { author: "Alex P.", rating: 5, comment: "Perfect for my build." },
   ];
 
   useEffect(() => {
-    setTimeout(() => {
-      setReviews(fetchedReviews);
+    // If product has reviews, use them, otherwise use default reviews
+    if (product?.reviews && product.reviews.length > 0) {
+      setReviews(product.reviews);
       setLoadingReviews(false);
-    }, 1000);
-  }, []);
+    } else {
+      // Simulate loading for demo purposes
+      setTimeout(() => {
+        setReviews(defaultReviews);
+        setLoadingReviews(false);
+      }, 1000);
+    }
+  }, [product]);
 
   const handleReviewSubmit = () => {
+    // Validate review
+    if (!newReview.author || newReview.rating === 0 || !newReview.comment) {
+      alert("Please fill in all fields");
+      return;
+    }
+
+    // In a real app, you would send this to your API
+    // For now, just add it to the local state
     setReviews((prev) => [...prev, newReview]);
     setNewReview({ author: "", rating: 0, comment: "" });
   };
@@ -56,7 +72,7 @@ const Reviews = () => {
 
             <DialogContent className="sm:max-w-[500px]">
               <DialogHeader>
-                <DialogTitle>Write a Review</DialogTitle>
+                <DialogTitle>Write a Review for {product?.name || "this product"}</DialogTitle>
               </DialogHeader>
 
               <div className="space-y-4">
@@ -105,20 +121,24 @@ const Reviews = () => {
           </Dialog>
 
           <div className="space-y-4 mt-4">
-            {reviews.map((review, index) => (
-              <div key={index} className="border p-4 rounded bg-gray-50 shadow">
-                <p className="font-semibold">{review.author}</p>
-                <p className="text-yellow-400">
-                  {"★".repeat(review.rating)}
-                  {Array.from({ length: 5 - review.rating }).map((_, i) => (
-                    <span key={i} className="text-gray-300">
-                      ☆
-                    </span>
-                  ))}
-                </p>
-                <p>{review.comment}</p>
-              </div>
-            ))}
+            {reviews.length > 0 ? (
+              reviews.map((review, index) => (
+                <div key={index} className="border p-4 rounded bg-gray-50 shadow">
+                  <p className="font-semibold">{review.author}</p>
+                  <p className="text-yellow-400">
+                    {"★".repeat(review.rating)}
+                    {Array.from({ length: 5 - review.rating }).map((_, i) => (
+                      <span key={i} className="text-gray-300">
+                        ☆
+                      </span>
+                    ))}
+                  </p>
+                  <p>{review.comment}</p>
+                </div>
+              ))
+            ) : (
+              <p className="text-gray-500">No reviews yet for this product.</p>
+            )}
           </div>
         </>
       )}

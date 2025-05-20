@@ -3,7 +3,7 @@ from rest_framework import serializers
 from .models import (
     ProductCategory, Brand, Color, Product, ProductImage,
     AttributeType, AttributeOption, ProductAttribute, ProductVariation, Discount,
-    RatingReview, ProductPerformance
+    RatingReview, ProductPerformance, ProductSpecification
 )
 
 class ProductCategorySerializer(serializers.ModelSerializer):
@@ -103,6 +103,11 @@ class RatingReviewSerializer(serializers.ModelSerializer):
         model = RatingReview
         fields = ['id', 'user_name', 'product', 'rating', 'review', 'created_at']
 
+class ProductSpecificationSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = ProductSpecification
+        fields = ['id', 'name', 'value']
+
 class ProductDetailSerializer(serializers.ModelSerializer):
     brand = BrandSerializer(read_only=True)
     category = ProductCategorySerializer(read_only=True)
@@ -110,7 +115,8 @@ class ProductDetailSerializer(serializers.ModelSerializer):
     images = ProductImageSerializer(many=True, read_only=True)
     attributes = ProductAttributeSerializer(many=True, read_only=True)
     variations = ProductVariationSerializer(many=True, read_only=True)
-    reviews = RatingReviewSerializer(many=True, read_only=True, source='reviews')
+    reviews = RatingReviewSerializer(many=True, read_only=True)
+    spec_entries = ProductSpecificationSerializer(many=True, read_only=True)
     total_stock = serializers.ReadOnlyField()
     has_variations = serializers.SerializerMethodField()
 
@@ -123,7 +129,7 @@ class ProductDetailSerializer(serializers.ModelSerializer):
             'id', 'slug', 'name', 'description', 'short_description',
             'original_price', 'selling_price', 'stock', 'total_stock', 'has_variations',
             'brand', 'category', 'color', 'is_featured', 'is_new_arrival', 'is_top_seller',
-            'rating', 'ratings_count', 'sales_count', 'specifications',
+            'rating', 'ratings_count', 'sales_count', 'specifications', 'spec_entries', 'warranty',
             'sub_category', 'images', 'attributes', 'variations', 'attribute_types',
             'added_at', 'updated_at', 'reviews'
         ]

@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
+import axios from "axios";
 import ProductModal from "./ProductModal/ProductModal";
 
 import {
@@ -29,42 +30,36 @@ const ProductGrid = ({ selectedCategory, filters }) => {
         console.log('Fetching products with filters:', filters);
 
         // Build filter parameters
-        const filterParams = new URLSearchParams({ page: currentPage });
+        const params = { page: currentPage };
 
         if (selectedCategory) {
-          filterParams.append('category__name', selectedCategory);
+          params.category__name = selectedCategory;
         }
 
         if (filters.minPrice) {
-          filterParams.append('min_price', filters.minPrice);
+          params.min_price = filters.minPrice;
         }
 
         if (filters.maxPrice) {
-          filterParams.append('max_price', filters.maxPrice);
+          params.max_price = filters.maxPrice;
         }
 
         // Handle multiple brand selections - join with comma for OR filtering
         if (filters.brands && filters.brands.length > 0) {
-          filterParams.append('brand_names', filters.brands.join(','));
+          params.brand_names = filters.brands.join(',');
         }
 
         if (filters.rating) {
           // Use rating__gte for "rating and up" filtering
-          filterParams.append('rating__gte', filters.rating);
+          params.rating__gte = filters.rating;
         }
 
-        console.log('Filter params:', Object.fromEntries(filterParams));
+        console.log('Filter params:', params);
 
-        // Direct fetch without authentication headers
-        const response = await fetch(`http://localhost:8000/api/products/?${filterParams.toString()}`, {
-          method: 'GET'
-        });
+        // Using axios instead of fetch
+        const response = await axios.get('http://localhost:8000/api/products/', { params });
+        const data = response.data;
 
-        if (!response.ok) {
-          throw new Error(`API error: ${response.status} ${response.statusText}`);
-        }
-
-        const data = await response.json();
         console.log('Products API response:', data);
 
         setProducts(data.results || []);
@@ -78,7 +73,7 @@ const ProductGrid = ({ selectedCategory, filters }) => {
         setError(null);
       } catch (err) {
         console.error('Error fetching products:', err);
-        setError(err.message);
+        setError(err.response?.data?.message || err.message);
       } finally {
         setLoading(false);
       }
@@ -86,6 +81,21 @@ const ProductGrid = ({ selectedCategory, filters }) => {
 
     fetchProducts();
   }, [selectedCategory, filters, currentPage]);
+
+  // Function to fetch detailed product data when a product is clicked
+  const fetchProductDetails = async (productSlug) => {
+    try {
+      console.log('Fetching detailed product data for slug:', productSlug);
+      const response = await axios.get(`http://localhost:8000/api/products/${productSlug}/`);
+
+      const detailedProduct = response.data;
+      console.log('Detailed product data:', detailedProduct);
+      return detailedProduct;
+    } catch (error) {
+      console.error('Error fetching product details:', error);
+      return null;
+    }
+  };
 
   const getPagination = (total, current, delta = 1) => {
     const range = [];
@@ -132,7 +142,16 @@ const ProductGrid = ({ selectedCategory, filters }) => {
           {products.map((product) => (
             <div
               key={product.id}
-              onClick={() => setSelectedProduct(product)}
+              onClick={async () => {
+                // First set the basic product data to show something immediately
+                setSelectedProduct(product);
+
+                // Then fetch detailed product data including variations
+                const detailedProduct = await fetchProductDetails(product.slug);
+                if (detailedProduct) {
+                  setSelectedProduct(detailedProduct);
+                }
+              }}
               className="bg-white rounded shadow-md p-3 cursor-pointer hover:shadow-lg transition duration-200"
             >
               <div className="w-full h-[150px] bg-gray-100 rounded flex items-center justify-center">
@@ -223,10 +242,13 @@ const ProductGrid = ({ selectedCategory, filters }) => {
       </div>
 
       {selectedProduct && (
-        <ProductModal
-          product={selectedProduct}
-          onClose={() => setSelectedProduct(null)}
-        />
+        <>
+          {console.log('Selected product data for modal:', selectedProduct)}
+          <ProductModal
+            product={selectedProduct}
+            onClose={() => setSelectedProduct(null)}
+          />
+        </>
       )}
     </>
   );

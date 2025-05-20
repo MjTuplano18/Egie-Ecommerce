@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
+import axios from "axios";
 import ProductModal from "../../Products/ProductGrid/ProductModal/ProductModal";
 import { FaStar, FaStarHalfAlt, FaRegStar } from "react-icons/fa";
 
@@ -35,23 +36,17 @@ const NewArrivals = () => {
     const fetchNewArrivals = async () => {
       try {
         setLoading(true);
-        const response = await fetch('http://localhost:8000/api/products/new_arrivals/', {
-          method: 'GET'
-        });
-        
-        if (!response.ok) {
-          throw new Error(`API error: ${response.status} ${response.statusText}`);
-        }
-        
-        const data = await response.json();
+        const response = await axios.get('http://localhost:8000/api/products/new_arrivals/');
+
+        const data = response.data;
         console.log('New arrivals data:', data);
-        
+
         const productList = data.results || data || [];
         setProducts(productList);
         setError(null);
       } catch (err) {
         console.error('Error fetching new arrivals:', err);
-        setError(err.message);
+        setError(err.response?.data?.message || err.message);
       } finally {
         setLoading(false);
       }
@@ -59,6 +54,21 @@ const NewArrivals = () => {
 
     fetchNewArrivals();
   }, []);
+
+  // Function to fetch detailed product data when a product is clicked
+  const fetchProductDetails = async (productSlug) => {
+    try {
+      console.log('Fetching detailed product data for slug:', productSlug);
+      const response = await axios.get(`http://localhost:8000/api/products/${productSlug}/`);
+
+      const detailedProduct = response.data;
+      console.log('Detailed product data:', detailedProduct);
+      return detailedProduct;
+    } catch (error) {
+      console.error('Error fetching product details:', error);
+      return null;
+    }
+  };
 
   if (loading) {
     return (
@@ -105,7 +115,16 @@ const NewArrivals = () => {
           return (
             <div
               key={product.id || index}
-              onClick={() => setSelectedProduct(product)}
+              onClick={async () => {
+                // First set the basic product data to show something immediately
+                setSelectedProduct(product);
+
+                // Then fetch detailed product data including variations
+                const detailedProduct = await fetchProductDetails(product.slug);
+                if (detailedProduct) {
+                  setSelectedProduct(detailedProduct);
+                }
+              }}
               className={`border border-gray-300 rounded-lg p-4 shadow-md cursor-pointer flex ${gridPosition[index]}`}
             >
               <div className="bg-gray-100 p-2 rounded">

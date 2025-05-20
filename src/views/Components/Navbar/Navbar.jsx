@@ -56,7 +56,38 @@ const categorizedParts = [
 ];
 
 const Navbar = ({isAuth}) => {
-  const { getCartCount } = useCart();
+  const { getCartCount, cartItems } = useCart();
+  const [cartCount, setCartCount] = useState(0);
+
+  // Update cart count when cartItems change
+  useEffect(() => {
+    const count = getCartCount();
+    console.log("Navbar - Updating cart count:", count);
+    setCartCount(count);
+  }, [cartItems, getCartCount]);
+
+  // Debug cart items
+  useEffect(() => {
+    console.log("Navbar - Cart Items:", cartItems);
+    console.log("Navbar - Cart Count:", cartCount);
+  }, [cartItems, cartCount]);
+
+  // Listen for cart updates
+  useEffect(() => {
+    const handleCartUpdate = () => {
+      console.log("Navbar - Cart update event received");
+      // Update the cart count
+      const count = getCartCount();
+      console.log("Navbar - Updating cart count after event:", count);
+      setCartCount(count);
+    };
+
+    window.addEventListener('cart-updated', handleCartUpdate);
+
+    return () => {
+      window.removeEventListener('cart-updated', handleCartUpdate);
+    };
+  }, [getCartCount]);
   const [notificationCount, setNotificationCount] = useState(3); // example
   const [isSignedIn, setIsSignedIn] = useState(isAuth);
   const [userData, setUserData] = useState(null);
@@ -68,16 +99,16 @@ const Navbar = ({isAuth}) => {
 
   const navigate = useNavigate();
   const location = useLocation();
-  
+
   const isProductsActive = location.pathname.startsWith("/products");
   const isActive = (path) => location.pathname === path;
 
   useEffect(() => {
     function handleClickOutside(event) {
       if (
-        dropdownRef.current && 
-        !dropdownRef.current.contains(event.target) && 
-        buttonRef.current && 
+        dropdownRef.current &&
+        !dropdownRef.current.contains(event.target) &&
+        buttonRef.current &&
         !buttonRef.current.contains(event.target)
       ) {
         setDropdownOpen(false);
@@ -365,11 +396,9 @@ const Navbar = ({isAuth}) => {
                         <span className="relative px-5 py-2.5 transition-all ease-in duration-75 bg-white rounded-md group-hover:bg-transparent group-hover:dark:bg-transparent">
                           <FaShoppingCart className="cart" />
                         </span>
-                        {getCartCount() > 0 && (
-                          <span className="absolute top-2 right-2 transform translate-x-1/2 -translate-y-1/2 bg-red-600 text-white text-xs font-bold px-1.5 py-0.5 rounded-full">
-                            {getCartCount()}
-                          </span>
-                        )}
+                        <span className={`absolute top-2 right-2 transform translate-x-1/2 -translate-y-1/2 bg-red-600 text-white text-xs font-bold px-1.5 py-0.5 rounded-full ${cartCount > 0 ? 'block' : 'hidden'}`}>
+                          {cartCount}
+                        </span>
                       </Link>
 
                       <Link
@@ -440,8 +469,8 @@ const Navbar = ({isAuth}) => {
                   <div
                     ref={dropdownRef}
                     className={`z-50 ${
-                      dropdownOpen 
-                        ? 'block opacity-100 transform translate-y-0' 
+                      dropdownOpen
+                        ? 'block opacity-100 transform translate-y-0'
                         : 'hidden opacity-0 transform -translate-y-2'
                     } absolute top-16 right-0 my-4 text-base list-none bg-white divide-y divide-gray-100 rounded-lg shadow-lg dark:bg-gray-700 dark:divide-gray-600 min-w-[250px] transition-all duration-200 ease-in-out`}
                     id="user-dropdown"

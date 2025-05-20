@@ -12,11 +12,15 @@ from django.db import transaction
 @permission_classes([IsAuthenticated])
 def cart_view(request):
     """Get user's cart"""
+    print(f"Cart view request for user: {request.user.username}")
+
     # Get or create cart for the user
     cart, created = Cart.objects.get_or_create(user=request.user)
+    print(f"Cart: {cart.id}, Created: {created}")
 
     # Get all cart items
     cart_items = CartItem.objects.filter(cart=cart).select_related('product')
+    print(f"Found {cart_items.count()} cart items")
 
     # Calculate total
     total = sum(item.product.selling_price * item.quantity for item in cart_items)
@@ -24,6 +28,15 @@ def cart_view(request):
     # Format response
     items = []
     for item in cart_items:
+        image_url = None
+        feature_image = item.product.images.filter(is_feature=True).first()
+        if feature_image and feature_image.image:
+            image_url = feature_image.image.url
+        else:
+            first_image = item.product.images.first()
+            if first_image and first_image.image:
+                image_url = first_image.image.url
+
         items.append({
             'id': item.id,
             'product_id': item.product.id,
@@ -31,19 +44,24 @@ def cart_view(request):
             'price': float(item.product.selling_price),
             'quantity': item.quantity,
             'subtotal': float(item.product.selling_price * item.quantity),
-            'image': item.product.images.filter(is_feature=True).first().image.url if item.product.images.filter(is_feature=True).exists() else None
+            'image': image_url
         })
+        print(f"Added item to response: {item.product.name}, ID: {item.id}, Product ID: {item.product.id}")
 
-    return Response({
+    response_data = {
         'items': items,
         'total': float(total),
         'item_count': len(items)
-    })
+    }
+    print(f"Returning cart with {len(items)} items, total: {total}")
+
+    return Response(response_data)
 
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
 def add_to_cart(request):
     """Add item to cart"""
+    print(f"Add to cart request data: {request.data}")
     product_id = request.data.get('product_id')
     quantity = int(request.data.get('quantity', 1))
 
@@ -51,7 +69,9 @@ def add_to_cart(request):
         return Response({'message': 'Product ID is required'}, status=status.HTTP_400_BAD_REQUEST)
 
     try:
-        product = Product.objects.get(id=product_id, is_active=True)
+        product = Product.objects.get(id=product_id)
+        if not product.is_active:
+            return Response({'message': 'Product is not available'}, status=status.HTTP_400_BAD_REQUEST)
     except Product.DoesNotExist:
         return Response({'message': 'Product not found'}, status=status.HTTP_404_NOT_FOUND)
 
@@ -65,20 +85,47 @@ def add_to_cart(request):
 
     # Get or create cart
     cart, created = Cart.objects.get_or_create(user=request.user)
+    print(f"Cart: {cart.id}, Created: {created}")
 
     # Check if item already exists in cart
     try:
         cart_item = CartItem.objects.get(cart=cart, product=product)
         cart_item.quantity += quantity
         cart_item.save()
+        print(f"Updated existing cart item: {cart_item.id}, New quantity: {cart_item.quantity}")
     except CartItem.DoesNotExist:
         cart_item = CartItem.objects.create(
             cart=cart,
             product=product,
             quantity=quantity
         )
+        print(f"Created new cart item: {cart_item.id}, Quantity: {cart_item.quantity}")
 
-    return Response({'message': 'Product added to cart successfully'}, status=status.HTTP_201_CREATED)
+    # Get updated cart items for response
+    cart_items = CartItem.objects.filter(cart=cart).select_related('product')
+    total = sum(item.product.selling_price * item.quantity for item in cart_items)
+
+    # Format response with cart details
+    items = []
+    for item in cart_items:
+        items.append({
+            'id': item.id,
+            'product_id': item.product.id,
+            'name': item.product.name,
+            'price': float(item.product.selling_price),
+            'quantity': item.quantity,
+            'subtotal': float(item.product.selling_price * item.quantity),
+            'image': item.product.images.filter(is_feature=True).first().image.url if item.product.images.filter(is_feature=True).exists() else None
+        })
+
+    return Response({
+        'message': 'Product added to cart successfully',
+        'cart': {
+            'items': items,
+            'total': float(total),
+            'item_count': len(items)
+        }
+    }, status=status.HTTP_201_CREATED)
 
 @api_view(['PUT'])
 @permission_classes([IsAuthenticated])
@@ -130,6 +177,17 @@ def remove_from_cart(request, item_id):
 
     cart_item.delete()
     return Response({'message': 'Item removed from cart'}, status=status.HTTP_200_OK)
+
+@api_view(['DELETE'])
+@permission_classes([IsAuthenticated])
+def clear_cart(request):
+    """Clear all items from user's cart"""
+    try:
+        cart = Cart.objects.get(user=request.user)
+        CartItem.objects.filter(cart=cart).delete()
+        return Response({'message': 'Cart cleared successfully'}, status=status.HTTP_200_OK)
+    except Cart.DoesNotExist:
+        return Response({'message': 'Cart not found'}, status=status.HTTP_404_NOT_FOUND)
 
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])

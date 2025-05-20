@@ -198,6 +198,44 @@ class RatingReview(models.Model):
     def __str__(self):
         return f"Review by {self.user.username} on {self.product.name}"
 
+class ProductSpecification(models.Model):
+    """
+    Model for storing individual product specifications in a user-friendly way.
+    This replaces the need to use the JSONField directly.
+    """
+    product = models.ForeignKey(Product, on_delete=models.CASCADE, related_name='spec_entries')
+    name = models.CharField(max_length=100, help_text="Specification name (e.g., 'Processor', 'RAM')")
+    value = models.CharField(max_length=255, help_text="Specification value (e.g., 'Intel i7', '16GB')")
+
+    class Meta:
+        unique_together = ('product', 'name')
+        ordering = ['name']
+        verbose_name = "Product Specification"
+        verbose_name_plural = "Product Specifications"
+
+    def __str__(self):
+        return f"{self.name}: {self.value}"
+
+    def save(self, *args, **kwargs):
+        # When saving a specification, also update the JSON field
+        super().save(*args, **kwargs)
+        self._update_json_field()
+
+    def delete(self, *args, **kwargs):
+        # When deleting a specification, also update the JSON field
+        super().delete(*args, **kwargs)
+        self._update_json_field()
+
+    def _update_json_field(self):
+        """Update the specifications JSONField on the product model"""
+        specs = {}
+        for spec in self.product.spec_entries.all():
+            specs[spec.name] = spec.value
+
+        self.product.specifications = specs
+        self.product.save(update_fields=['specifications'])
+
+
 class ProductPerformance(models.Model):
     product = models.ForeignKey(Product, on_delete=models.CASCADE, related_name='performance')
     sales_count = models.IntegerField(default=0)

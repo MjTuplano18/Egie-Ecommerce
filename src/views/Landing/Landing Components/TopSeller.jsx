@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
+import axios from "axios";
 import ProductModal from "../../Products/ProductGrid/ProductModal/ProductModal";
 
 const TopSeller = () => {
@@ -12,15 +13,9 @@ const TopSeller = () => {
     const fetchTopSellers = async () => {
       try {
         setLoading(true);
-        const response = await fetch('http://localhost:8000/api/products/top_sellers/', {
-          method: 'GET'
-        });
+        const response = await axios.get('http://localhost:8000/api/products/top_sellers/');
 
-        if (!response.ok) {
-          throw new Error(`API error: ${response.status} ${response.statusText}`);
-        }
-
-        const data = await response.json();
+        const data = response.data;
         console.log('Top sellers data:', data);
 
         // Handle both paginated and non-paginated responses
@@ -30,7 +25,7 @@ const TopSeller = () => {
         setError(null);
       } catch (err) {
         console.error('Error fetching top sellers:', err);
-        setError(err.message);
+        setError(err.response?.data?.message || err.message);
       } finally {
         setLoading(false);
       }
@@ -38,6 +33,21 @@ const TopSeller = () => {
 
     fetchTopSellers();
   }, []);
+
+  // Function to fetch detailed product data when a product is clicked
+  const fetchProductDetails = async (productSlug) => {
+    try {
+      console.log('Fetching detailed product data for slug:', productSlug);
+      const response = await axios.get(`http://localhost:8000/api/products/${productSlug}/`);
+
+      const detailedProduct = response.data;
+      console.log('Detailed product data:', detailedProduct);
+      return detailedProduct;
+    } catch (error) {
+      console.error('Error fetching product details:', error);
+      return null;
+    }
+  };
 
   if (loading) {
     return (
@@ -75,7 +85,16 @@ const TopSeller = () => {
         {products.slice(0, 10).map((product, index) => (
           <div
             key={product.id || index}
-            onClick={() => setSelectedProduct(product)}
+            onClick={async () => {
+              // First set the basic product data to show something immediately
+              setSelectedProduct(product);
+
+              // Then fetch detailed product data including variations
+              const detailedProduct = await fetchProductDetails(product.slug);
+              if (detailedProduct) {
+                setSelectedProduct(detailedProduct);
+              }
+            }}
             className="bg-white rounded shadow-md p-3 cursor-pointer hover:shadow-lg transition duration-200"
           >
             <div className="w-full h-[150px] bg-gray-100 rounded flex items-center justify-center">

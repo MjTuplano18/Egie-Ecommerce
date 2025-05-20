@@ -45,12 +45,12 @@ def get_csrf_token(request):
 urlpatterns = [
     # Admin URLs
     path('admin/', admin.site.urls),
-    
+
     # API URLs - KEEP THESE BEFORE THE CATCH-ALL PATTERN
     path('api/', include(router.urls)),
     path('api/products/', include('products.urls')),
     path('api/brands-by-category/', brands_by_category, name='brands-by-category'),
-    path('api/create-order/', orders_views.create_order, name='create_order'),
+    path('api/orders/', include('orders.urls')),
     path('api/get-csrf-token/', get_csrf_token, name='get_csrf_token'),
     path('api/token/', TokenObtainPairView.as_view(), name='token_obtain_pair'),
     path('api/token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
