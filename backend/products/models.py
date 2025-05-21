@@ -52,7 +52,6 @@ class Product(models.Model):
     warranty = models.CharField(max_length=255, blank=True, help_text="Warranty period or conditions")
     sub_category = models.CharField(max_length=100, blank=True)
 
-    bundles = models.ManyToManyField('self', blank=True, symmetrical=False, related_name='bundled_with')
     compatible_builds = models.ManyToManyField('self', blank=True, symmetrical=False, related_name='compatible_with')
 
     class Meta:

@@ -7,6 +7,7 @@ import SignIn from './views/SignIn/SignIn'
 import Footer from './views/Components/Footer/Footer'
 import Products from './views/Products/Products'
 import ProductDetails from './views/Products/ProductGrid/ProductDetails/ProductDetails';
+import BundleDetails from './views/Products/BundleDetails/BundleDetails';
 import Cart from './views/Cart/Cart';
 import Checkout from './views/Checkout/Checkout';
 import ThankYou from './views/Checkout/Thankyou';
@@ -63,6 +64,7 @@ const Main = () => {
           <Route path="/signin" element={<SignIn />} />
           <Route path="/products" element={<Products />} />
           <Route path="/products/details/:id" element={<ProductDetails />} />
+          <Route path="/bundles/:id" element={<BundleDetails />} />
           <Route path="/cart" element={<Cart />} />
           <Route path="/checkout" element={<Checkout />} />
           <Route path="/thankyou" element={<ThankYou />} />

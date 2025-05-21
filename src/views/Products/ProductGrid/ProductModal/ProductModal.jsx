@@ -482,9 +482,10 @@ const ProductModal = ({ product, onClose }) => {
                         <span>{variation.name}</span>
                         {variation.price !== product.selling_price && (
                           <span className="text-sm text-green-600">
-                            ₱{typeof variation.price === 'number'
-                              ? variation.price.toLocaleString()
-                              : parseFloat(variation.price).toLocaleString()}
+                            ₱{parseFloat(variation.price).toLocaleString('en-PH', {
+                              minimumFractionDigits: 2,
+                              maximumFractionDigits: 2
+                            })}
                           </span>
                         )}
                         <span className="text-xs text-gray-500">

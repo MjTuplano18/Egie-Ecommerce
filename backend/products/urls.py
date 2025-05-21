@@ -14,6 +14,8 @@ urlpatterns = [
     # These endpoints are handled by @action decorators in ProductViewSet
     path('products/new-arrivals/', views.ProductViewSet.as_view({'get': 'new_arrivals'}), name='new-arrivals'),
     path('products/top_sellers/', views.ProductViewSet.as_view({'get': 'top_sellers'}), name='top-sellers'),
+    # Compatible products endpoint - using slug as lookup
+    path('products/<slug:slug>/compatible/', views.ProductViewSet.as_view({'get': 'compatible_products'}), name='compatible-products'),
     # Category products are handled by the CategoryViewSet products action
     path('categories/<int:pk>/products/', views.CategoryViewSet.as_view({'get': 'products'}), name='category-products'),
 ]

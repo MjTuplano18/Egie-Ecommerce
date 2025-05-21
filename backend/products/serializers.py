@@ -119,6 +119,7 @@ class ProductDetailSerializer(serializers.ModelSerializer):
     spec_entries = ProductSpecificationSerializer(many=True, read_only=True)
     total_stock = serializers.ReadOnlyField()
     has_variations = serializers.SerializerMethodField()
+    compatible_builds = serializers.SerializerMethodField()
 
     # Group attributes by type for easier frontend handling
     attribute_types = serializers.SerializerMethodField()
@@ -131,8 +132,15 @@ class ProductDetailSerializer(serializers.ModelSerializer):
             'brand', 'category', 'color', 'is_featured', 'is_new_arrival', 'is_top_seller',
             'rating', 'ratings_count', 'sales_count', 'specifications', 'spec_entries', 'warranty',
             'sub_category', 'images', 'attributes', 'variations', 'attribute_types',
-            'added_at', 'updated_at', 'reviews'
+            'added_at', 'updated_at', 'reviews', 'compatible_builds'
         ]
+
+    def get_compatible_builds(self, obj):
+        """Get a list of compatible products"""
+        compatible_builds = obj.compatible_builds.filter(is_active=True)
+        if compatible_builds.exists():
+            return ProductListSerializer(compatible_builds, many=True).data
+        return []
 
     def get_has_variations(self, obj):
         return obj.variations.exists()

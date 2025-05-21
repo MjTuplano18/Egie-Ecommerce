@@ -8,32 +8,42 @@ const CompComponents = ({ product }) => {
   useEffect(() => {
     const fetchCompatibleProducts = async () => {
       try {
-        // Check if the product has related_products from the Django admin
-        if (product?.related_products && product.related_products.length > 0) {
-          setCompatibleProducts(product.related_products);
+        console.log("Product data:", product);
+
+        // Check if the product has compatible_builds directly in the object
+        if (product?.compatible_builds && product.compatible_builds.length > 0) {
+          console.log("Found compatible_builds in product data:", product.compatible_builds);
+          setCompatibleProducts(product.compatible_builds);
           setLoading(false);
-        } else if (product?.compatible_products && product.compatible_products.length > 0) {
-          // Alternative field name that might be used
-          setCompatibleProducts(product.compatible_products);
-          setLoading(false);
-        } else if (product?.id) {
-          // If we have a product ID but no related products directly in the object,
-          // fetch them from the API
+          return;
+        }
+
+        // If we have a product slug, fetch compatible products from the API
+        if (product?.slug) {
           try {
-            const response = await axios.get(`${process.env.REACT_APP_API_URL || 'http://localhost:8000'}/api/products/${product.id}/compatible/`);
-            if (response.data && response.data.length > 0) {
+            // Use a hardcoded API URL to avoid process.env issues
+            const apiUrl = 'http://localhost:8000';
+            const url = `${apiUrl}/api/products/${product.slug}/compatible/`;
+            console.log("Fetching compatible products from:", url);
+
+            const response = await axios.get(url);
+            console.log("API response:", response.data);
+
+            if (response.data && Array.isArray(response.data)) {
               setCompatibleProducts(response.data);
+              console.log("Set compatible products from API:", response.data);
             } else {
+              console.log("API response is not an array, setting empty array");
               setCompatibleProducts([]);
             }
-            setLoading(false);
           } catch (error) {
             console.error("Error fetching compatible products:", error);
             setCompatibleProducts([]);
+          } finally {
             setLoading(false);
           }
         } else {
-          // No product ID or related products
+          console.log("No product slug found");
           setCompatibleProducts([]);
           setLoading(false);
         }
@@ -44,7 +54,10 @@ const CompComponents = ({ product }) => {
       }
     };
 
-    fetchCompatibleProducts();
+    if (product) {
+      console.log("Product changed, fetching compatible products");
+      fetchCompatibleProducts();
+    }
   }, [product]);
 
   // Only show this section if we have compatible products or if the product is in a relevant category
@@ -74,16 +87,16 @@ const CompComponents = ({ product }) => {
             </div>
           ) : compatibleProducts.length > 0 ? (
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
-              {compatibleProducts.map((item) => (
+              {compatibleProducts.map((item, index) => (
                 <div
-                  key={item.id}
-                  className="border p-4 rounded shadow hover:shadow-md transition-shadow cursor-pointer bg-white"
-                  onClick={() => window.location.href = `/product/${item.id}`}
+                  key={item.id || index}
+                  className="border p-4 rounded shadow hover:shadow-lg hover:border-blue-500 transition-all duration-200 cursor-pointer bg-white"
+                  onClick={() => window.location.href = `/products/details/${item.slug || item.id}`}
                 >
-                  {item.image_url && (
+                  {(item.image_url || item.main_image) && (
                     <div className="mb-2 flex justify-center">
                       <img
-                        src={item.image_url}
+                        src={item.image_url || item.main_image}
                         alt={item.name}
                         className="h-24 object-contain"
                         onError={(e) => {
@@ -94,11 +107,13 @@ const CompComponents = ({ product }) => {
                     </div>
                   )}
                   <h3 className="font-semibold">{item.name}</h3>
-                  <p className="text-sm text-gray-600 line-clamp-2">{item.description || 'No description available'}</p>
+                  <p className="text-sm text-gray-600 line-clamp-2">{item.short_description || 'No description available'}</p>
                   <p className="font-bold mt-2">
-                    ₱ {typeof item.price === 'number'
-                      ? item.price.toLocaleString()
-                      : parseFloat(item.price)?.toLocaleString() || 'Price unavailable'}
+                    ₱ {item.selling_price
+                      ? (typeof item.selling_price === 'number'
+                         ? item.selling_price.toLocaleString()
+                         : parseFloat(item.selling_price)?.toLocaleString())
+                      : 'Price unavailable'}
                   </p>
                 </div>
               ))}

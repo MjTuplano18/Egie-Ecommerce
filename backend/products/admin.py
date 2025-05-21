@@ -41,6 +41,7 @@ class ProductSpecificationInline(admin.TabularInline):
     fields = ('name', 'value')
     verbose_name = "Specification"
     verbose_name_plural = "Specifications"
+
 @admin.register(Product)
 class ProductAdmin(admin.ModelAdmin):
     list_display = (
@@ -54,7 +55,7 @@ class ProductAdmin(admin.ModelAdmin):
     search_fields = ('name', 'description', 'short_description', 'brand__name')
     prepopulated_fields = {'slug': ('name',)}
     inlines = [ProductImageInline, ProductVariationInline, ProductAttributeInline, ProductSpecificationInline, ProductInventoryInline]
-    filter_horizontal = ('bundles', 'compatible_builds')
+    filter_horizontal = ('compatible_builds',)
     fieldsets = (
         (None, {
             'fields': (
@@ -79,7 +80,7 @@ class ProductAdmin(admin.ModelAdmin):
         }),
         ('Relations', {
             'fields': (
-                'bundles', 'compatible_builds'
+                'compatible_builds',
             )
         }),
     )

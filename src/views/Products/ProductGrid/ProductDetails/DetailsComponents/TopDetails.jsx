@@ -401,19 +401,15 @@ const TopDetails = ({ product }) => {
                 }
 
                 // Calculate total price
-                const totalPrice = basePrice + monitorPrice;
-
-                return totalPrice > 0
-                  ? `₱${totalPrice.toLocaleString()}`
+                const totalPrice = basePrice + monitorPrice;                return totalPrice > 0
+                  ? `₱${parseFloat(totalPrice).toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
                   : (product?.price || "Price not available");
               })()}
             </div>
 
             {product?.original_price && product.original_price !== product.selling_price && !selectedVariation && (
               <div className="text-lg text-gray-500 line-through mb-4">
-                ₱{typeof product.original_price === 'number'
-                  ? product.original_price.toLocaleString()
-                  : parseFloat(product.original_price).toLocaleString()}
+                ₱{parseFloat(product.original_price).toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
               </div>
             )}
 
@@ -465,9 +461,7 @@ const TopDetails = ({ product }) => {
                     <div className="flex flex-col">
                       <span>{variation.name}</span>
                       <span className="text-sm text-green-600">
-                        ₱{typeof variation.price === 'number'
-                          ? variation.price.toLocaleString()
-                          : parseFloat(variation.price).toLocaleString()}
+                        ₱{parseFloat(variation.price).toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                       </span>
                       <span className="text-xs text-gray-500">
                         {variation.stock > 0

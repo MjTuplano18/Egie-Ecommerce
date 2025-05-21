@@ -2,7 +2,6 @@ import React, { useState, useEffect } from "react";
 import axios from "axios";
 import {
   Dialog,
-  DialogTrigger,
   DialogContent,
   DialogHeader,
   DialogTitle,
@@ -12,7 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
 
-const Reviews = ({ product }) => {
+const BundleReviews = ({ bundle }) => {
   const [reviews, setReviews] = useState([]);
   const [loadingReviews, setLoadingReviews] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -31,20 +30,19 @@ const Reviews = ({ product }) => {
 
   useEffect(() => {
     loadReviews();
-  }, [product?.id]);
+  }, [bundle?.id]);
 
   const loadReviews = async () => {
-    if (!product?.id) return;
+    if (!bundle?.id) return;
 
     try {
       setLoadingReviews(true);
-      const response = await axios.get(`/api/products/${product.id}/reviews/`);
-      // Ensure we always set an array, even if the response is null or undefined
+      const response = await axios.get(`/api/bundles/${bundle.id}/reviews/`);
       setReviews(Array.isArray(response.data) ? response.data : []);
     } catch (error) {
       console.error("Error loading reviews:", error);
       toast.error("Failed to load reviews");
-      setReviews([]); // Reset to empty array on error
+      setReviews([]);
     } finally {
       setLoadingReviews(false);
     }
@@ -66,7 +64,7 @@ const Reviews = ({ product }) => {
 
     try {
       await axios.post(
-        `/api/products/${product.id}/reviews/`,
+        `/api/bundles/${bundle.id}/reviews/`,
         {
           rating: newReview.rating,
           review: newReview.comment,
@@ -87,7 +85,7 @@ const Reviews = ({ product }) => {
       toast.error(errorMsg);
 
       if (error.response?.status === 400 && error.response?.data?.error === "already_reviewed") {
-        toast.error("You have already reviewed this product");
+        toast.error("You have already reviewed this bundle");
       }
     } finally {
       setIsSubmitting(false);
@@ -99,7 +97,7 @@ const Reviews = ({ product }) => {
     if (!token) return;
 
     try {
-      await axios.delete(`/api/products/reviews/${reviewId}/`, {
+      await axios.delete(`/api/bundles/reviews/${reviewId}/`, {
         headers: {
           Authorization: `Bearer ${token}`,
         },
@@ -129,7 +127,7 @@ const Reviews = ({ product }) => {
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent className="sm:max-w-[500px]">
           <DialogHeader>
-            <DialogTitle>Write a Review for {product?.name}</DialogTitle>
+            <DialogTitle>Write a Review for {bundle?.title}</DialogTitle>
           </DialogHeader>
 
           <div className="space-y-4">
@@ -205,14 +203,12 @@ const Reviews = ({ product }) => {
               </div>
             ))
           ) : (
-            <p className="text-gray-500">No reviews yet for this product.</p>
+            <p className="text-gray-500">No reviews yet for this bundle.</p>
           )}
         </div>
       )}
-
-      <hr className="border-t-2 border-black my-4" />
     </>
   );
 };
 
-export default Reviews;
+export default BundleReviews;
