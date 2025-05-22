@@ -39,6 +39,24 @@ class ProductViewSet(viewsets.ModelViewSet):
             return ProductDetailSerializer
         return ProductListSerializer
 
+    @action(detail=True, methods=['get'], url_path='compatible')
+    def compatible_products(self, request, slug=None):
+        """Get compatible products for a specific product"""
+        product = self.get_object()
+        compatible_products = product.compatible_builds.filter(is_active=True)
+
+        # If no compatible products are explicitly set, try to find products in the same category
+        if not compatible_products.exists() and product.category:
+            # Get up to 6 products from the same category, excluding the current product
+            compatible_products = Product.objects.filter(
+                category=product.category,
+                is_active=True
+            ).exclude(id=product.id)[:6]
+
+        # Use a custom serializer to include all needed fields
+        serializer = ProductListSerializer(compatible_products, many=True)
+        return Response(serializer.data)
+
     def get_queryset(self):
         queryset = super().get_queryset()
 

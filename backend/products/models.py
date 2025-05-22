@@ -52,7 +52,6 @@ class Product(models.Model):
     warranty = models.CharField(max_length=255, blank=True, help_text="Warranty period or conditions")
     sub_category = models.CharField(max_length=100, blank=True)
 
-    bundles = models.ManyToManyField('self', blank=True, symmetrical=False, related_name='bundled_with')
     compatible_builds = models.ManyToManyField('self', blank=True, symmetrical=False, related_name='compatible_with')
 
     class Meta:
@@ -127,6 +126,7 @@ class ProductVariation(models.Model):
     name = models.CharField(max_length=255, help_text="Variation name (e.g., '8GB/256SSD')")
     price_adjustment = models.DecimalField(max_digits=10, decimal_places=2, default=0.00,
                                           help_text="Amount to add/subtract from base product price")
+    original_price = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True, help_text="Old price for this variation")
     stock = models.PositiveIntegerField(default=0, help_text="Available stock for this specific variation")
     is_default = models.BooleanField(default=False)
 
@@ -141,14 +141,19 @@ class ProductVariation(models.Model):
         if self.is_default:
             ProductVariation.objects.filter(product=self.product).exclude(id=self.id).update(is_default=False)
         # If no default exists for this product, mark this as default
-        elif not ProductVariation.objects.filter(product=self.product, is_default=True).exists():
-            self.is_default = True
+        elif not ProductVariation.objects.filter(product=self.product, is_default=True).exists():            self.is_default = True
         super().save(*args, **kwargs)
 
     @property
     def final_price(self):
         """Calculate the final price for this variation"""
-        return self.product.selling_price + self.price_adjustment
+        base_price = self.product.selling_price if hasattr(self.product, 'selling_price') else 0
+        return float(base_price) + float(self.price_adjustment)
+
+    @property
+    def in_stock(self):
+        """Check if variation is in stock"""
+        return self.stock > 0
 
 
 class ProductAttribute(models.Model):
@@ -197,6 +202,44 @@ class RatingReview(models.Model):
 
     def __str__(self):
         return f"Review by {self.user.username} on {self.product.name}"
+
+class ProductSpecification(models.Model):
+    """
+    Model for storing individual product specifications in a user-friendly way.
+    This replaces the need to use the JSONField directly.
+    """
+    product = models.ForeignKey(Product, on_delete=models.CASCADE, related_name='spec_entries')
+    name = models.CharField(max_length=100, help_text="Specification name (e.g., 'Processor', 'RAM')")
+    value = models.CharField(max_length=255, help_text="Specification value (e.g., 'Intel i7', '16GB')")
+
+    class Meta:
+        unique_together = ('product', 'name')
+        ordering = ['name']
+        verbose_name = "Product Specification"
+        verbose_name_plural = "Product Specifications"
+
+    def __str__(self):
+        return f"{self.name}: {self.value}"
+
+    def save(self, *args, **kwargs):
+        # When saving a specification, also update the JSON field
+        super().save(*args, **kwargs)
+        self._update_json_field()
+
+    def delete(self, *args, **kwargs):
+        # When deleting a specification, also update the JSON field
+        super().delete(*args, **kwargs)
+        self._update_json_field()
+
+    def _update_json_field(self):
+        """Update the specifications JSONField on the product model"""
+        specs = {}
+        for spec in self.product.spec_entries.all():
+            specs[spec.name] = spec.value
+
+        self.product.specifications = specs
+        self.product.save(update_fields=['specifications'])
+
 
 class ProductPerformance(models.Model):
     product = models.ForeignKey(Product, on_delete=models.CASCADE, related_name='performance')

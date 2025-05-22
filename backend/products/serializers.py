@@ -3,7 +3,7 @@ from rest_framework import serializers
 from .models import (
     ProductCategory, Brand, Color, Product, ProductImage,
     AttributeType, AttributeOption, ProductAttribute, ProductVariation, Discount,
-    RatingReview, ProductPerformance
+    RatingReview, ProductPerformance, ProductSpecification
 )
 
 class ProductCategorySerializer(serializers.ModelSerializer):
@@ -57,7 +57,7 @@ class ProductVariationSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = ProductVariation
-        fields = ['id', 'name', 'price_adjustment', 'stock', 'is_default', 'final_price']
+        fields = ['id', 'name', 'price_adjustment', 'stock', 'is_default', 'final_price', ]
 
 class ProductAttributeSerializer(serializers.ModelSerializer):
     attribute_details = AttributeOptionSerializer(source='attribute', read_only=True)
@@ -67,20 +67,26 @@ class ProductAttributeSerializer(serializers.ModelSerializer):
         model = ProductAttribute
         fields = ['id', 'attribute', 'attribute_details', 'variation', 'variation_name']
 
+class ProductSpecificationSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = ProductSpecification
+        fields = ['id', 'name', 'value']
+
 class ProductListSerializer(serializers.ModelSerializer):
     brand_name = serializers.CharField(source='brand.name', read_only=True)
     category_name = serializers.CharField(source='category.name', read_only=True)
     main_image = serializers.SerializerMethodField()
     total_stock = serializers.ReadOnlyField()
     has_variations = serializers.SerializerMethodField()
+    spec_entries = ProductSpecificationSerializer(many=True, read_only=True)
 
     class Meta:
         model = Product
         fields = [
             'id', 'slug', 'name', 'short_description', 'selling_price',
-            'brand_name', 'category_name', 'sub_category', 'rating',
+            'original_price', 'brand_name', 'category_name', 'sub_category', 'rating',
             'is_featured', 'is_new_arrival', 'is_top_seller', 'main_image',
-            'stock', 'total_stock', 'has_variations'
+            'stock', 'total_stock', 'has_variations', 'specifications', 'spec_entries', 'variations'
         ]
 
     def get_has_variations(self, obj):
@@ -110,9 +116,11 @@ class ProductDetailSerializer(serializers.ModelSerializer):
     images = ProductImageSerializer(many=True, read_only=True)
     attributes = ProductAttributeSerializer(many=True, read_only=True)
     variations = ProductVariationSerializer(many=True, read_only=True)
-    reviews = RatingReviewSerializer(many=True, read_only=True, source='reviews')
+    reviews = RatingReviewSerializer(many=True, read_only=True)
+    spec_entries = ProductSpecificationSerializer(many=True, read_only=True)
     total_stock = serializers.ReadOnlyField()
     has_variations = serializers.SerializerMethodField()
+    compatible_builds = serializers.SerializerMethodField()
 
     # Group attributes by type for easier frontend handling
     attribute_types = serializers.SerializerMethodField()
@@ -123,10 +131,17 @@ class ProductDetailSerializer(serializers.ModelSerializer):
             'id', 'slug', 'name', 'description', 'short_description',
             'original_price', 'selling_price', 'stock', 'total_stock', 'has_variations',
             'brand', 'category', 'color', 'is_featured', 'is_new_arrival', 'is_top_seller',
-            'rating', 'ratings_count', 'sales_count', 'specifications',
+            'rating', 'ratings_count', 'sales_count', 'specifications', 'spec_entries', 'warranty',
             'sub_category', 'images', 'attributes', 'variations', 'attribute_types',
-            'added_at', 'updated_at', 'reviews'
+            'added_at', 'updated_at', 'reviews', 'compatible_builds'
         ]
+
+    def get_compatible_builds(self, obj):
+        """Get a list of compatible products"""
+        compatible_builds = obj.compatible_builds.filter(is_active=True)
+        if compatible_builds.exists():
+            return ProductListSerializer(compatible_builds, many=True).data
+        return []
 
     def get_has_variations(self, obj):
         return obj.variations.exists()
