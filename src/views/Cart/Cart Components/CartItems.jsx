@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React from "react";
 import { FaTrash } from "react-icons/fa";
 import { Link } from "react-router-dom";
 import {
@@ -10,21 +10,14 @@ import {
 
 const CartItems = ({
   cartItems,
-  setCartItems,
-  updateQuantity: propUpdateQuantity,
-  toggleSelect: propToggleSelect,
-  toggleSelectAll: propToggleSelectAll,
-  removeItem: propRemoveItem,
-  clearCart: propClearCart
+  updateQuantity,
+  toggleSelect,
+  toggleSelectAll,
+  removeItem,
+  clearCart
 }) => {
-  // Debug cart items
-  useEffect(() => {
-    console.log("CartItems component - cartItems:", cartItems);
-  }, [cartItems]);
-
   // If no cart items, display a message
   if (!cartItems || cartItems.length === 0) {
-    console.log("Cart is empty, showing empty cart message");
     return (
       <div className="bg-white shadow p-4 rounded w-full max-w-4xl">
         <p className="text-4xl mb-6">Checkout</p>
@@ -41,46 +34,6 @@ const CartItems = ({
       </div>
     );
   }
-
-  // Use the props if provided, otherwise use local functions
-  const handleUpdateQuantity = propUpdateQuantity || ((id, delta) => {
-    setCartItems((prev) =>
-      prev.map((item) =>
-        item.id === id
-          ? {
-              ...item,
-              quantity: Math.max(item.quantity + delta, 1),
-            }
-          : item
-      )
-    );
-  });
-
-  const handleToggleSelect = propToggleSelect || ((id) => {
-    setCartItems((prev) =>
-      prev.map((item) =>
-        item.id === id ? { ...item, selected: !item.selected } : item
-      )
-    );
-  });
-
-  const handleToggleSelectAll = propToggleSelectAll || ((checked) => {
-    setCartItems((prev) =>
-      prev.map((item) => ({ ...item, selected: checked }))
-    );
-  });
-
-  const handleRemoveItem = propRemoveItem || ((id) => {
-    setCartItems((prev) => prev.filter((item) => item.id !== id));
-  });
-
-  const handleClearCart = () => {
-    if (propClearCart) {
-      propClearCart();
-    } else {
-      setCartItems([]);
-    }
-  };
 
   const selectedItems = cartItems.filter((item) => item.selected);
   const total = selectedItems.reduce(
@@ -101,7 +54,7 @@ const CartItems = ({
           <input
             type="checkbox"
             checked={allSelected}
-            onChange={(e) => handleToggleSelectAll(e.target.checked)}
+            onChange={(e) => toggleSelectAll(e.target.checked)}
             className="mr-2 w-4 h-4 rounded transition duration-200 ease-in-out accent-green-600"
           />
           <span className="text-sm">Select All</span>
@@ -126,7 +79,7 @@ const CartItems = ({
                 <input
                   type="checkbox"
                   checked={item.selected}
-                  onChange={() => handleToggleSelect(item.id)}
+                  onChange={() => toggleSelect(item.id)}
                   className="mr-2 w-4 h-4 rounded transition duration-200 ease-in-out accent-green-600"
                 />
               </td>
@@ -134,30 +87,31 @@ const CartItems = ({
                 <img
                   src={item.image || "https://via.placeholder.com/60"}
                   alt={item.name}
-                  className="w-16 h-16 object-cover"
+                  className="w-16 h-16 object-cover rounded-md"
                   onError={(e) => {
                     e.target.onerror = null;
                     e.target.src = "https://via.placeholder.com/60";
                   }}
                 />
-                <span>{item.name}</span>
+                <span className="font-medium">{item.name}</span>
               </td>
+
               <td className="py-2">₱{(item.price || 0).toLocaleString()}</td>
 
               <td className="py-2">
                 <div className="flex items-center justify-center gap-2">
                   <button
-                    onClick={() => handleUpdateQuantity(item.id, -1)}
-                    className="bg-red-500 text-white rounded px-2 py-1 h-8"
+                    onClick={() => updateQuantity(item.id, -1)}
+                    className="bg-red-500 text-white rounded px-2 py-1 h-8 hover:bg-red-600 transition"
                   >
                     −
                   </button>
-                  <span className="inline-flex items-center justify-center h-8 px-2 border rounded">
+                  <span className="inline-flex items-center justify-center h-8 px-3 border rounded min-w-[40px]">
                     {item.quantity}
                   </span>
                   <button
-                    onClick={() => handleUpdateQuantity(item.id, 1)}
-                    className="bg-green-500 text-white rounded px-2 py-1 h-8"
+                    onClick={() => updateQuantity(item.id, 1)}
+                    className="bg-green-500 text-white rounded px-2 py-1 h-8 hover:bg-green-600 transition"
                   >
                     +
                   </button>
@@ -172,7 +126,7 @@ const CartItems = ({
                   <TooltipProvider>
                     <Tooltip>
                       <TooltipTrigger
-                        onClick={() => handleRemoveItem(item.id)}
+                        onClick={() => removeItem(item.id)}
                         className="cursor-pointer"
                       >
                         <FaTrash className="text-red-500 hover:text-red-700 transition" />
@@ -189,22 +143,20 @@ const CartItems = ({
         </tbody>
       </table>
 
-      {/* Total Summary */}
       <div className="mt-4 text-right font-semibold text-lg">
         Selected Total: ₱{total.toLocaleString()}
       </div>
 
-      {/* Action Buttons */}
       <div className="flex justify-between mt-4">
         <button
-          onClick={handleClearCart}
-          className="bg-red-600 text-white px-4 py-2 rounded hover:bg-red-700"
+          onClick={clearCart}
+          className="bg-red-600 text-white px-4 py-2 rounded hover:bg-red-700 transition"
         >
           Clear Cart
         </button>
         <Link
           to="/products"
-          className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700"
+          className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 transition"
         >
           Continue Shopping
         </Link>
