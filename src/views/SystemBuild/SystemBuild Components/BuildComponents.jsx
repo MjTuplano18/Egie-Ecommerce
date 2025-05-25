@@ -5,6 +5,7 @@ import { Link } from "react-router-dom";
 import { toast } from "sonner";
 import { useCart } from "@/views/Cart/Cart Components/CartContext";
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
+import SaveBuildModal from "./SaveBuildModal";
 
 const BuildComponents = ({
   selectedType,
@@ -15,6 +16,7 @@ const BuildComponents = ({
   const { addManyToCart } = useCart();
   const { components, loading, error } = useComponents();
   const [quantities, setQuantities] = useState([]);
+  const [isSaveModalOpen, setIsSaveModalOpen] = useState(false);
 
   // Initialize quantities when components load
   useEffect(() => {
@@ -43,7 +45,6 @@ const BuildComponents = ({
     });
     setQuantities((prev) => prev.map((qty, i) => (i === index ? 1 : qty)));
   };
-
   const getSelectedProductsWithQuantities = () => {
     return components.reduce((acc, comp, index) => {
       const selectedProduct = selectedProducts[comp.type];
@@ -56,7 +57,8 @@ const BuildComponents = ({
           imageUrl: selectedProduct.imageUrl,
           image: selectedProduct.imageUrl, // For compatibility with cart
           quantity: quantities[index],
-          variation: selectedProduct.attribute_option
+          variation: selectedProduct.attribute_option,
+          type: comp.type // Include component type for custom builds
         });
       }
       return acc;
@@ -84,6 +86,27 @@ const BuildComponents = ({
     toast.success("Added to cart!", {
       description: "Your products have been successfully added.",
     });
+  };
+
+  const handleSaveBuild = async (buildData) => {
+    try {
+      const response = await fetch('http://localhost:8000/api/marketing/custom-builds/', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(buildData),
+        credentials: 'include'
+      });
+      if (!response.ok) {
+        throw new Error(`API error: ${response.status}`);
+      }
+      toast.success("Build saved!", {
+        description: "Your custom build has been saved and will appear in the Custom Builds section."
+      });
+    } catch (error) {
+      throw error;
+    }
   };
 
   if (loading) {
@@ -225,14 +248,27 @@ const BuildComponents = ({
                 );
               })}
             </tbody>
-          </table>
-
-          <div className="bg-gray-700 text-white flex justify-between items-center p-4 rounded-md">
+          </table>          <div className="bg-gray-700 text-white flex justify-between items-center p-4 rounded-md">
             <span className="text-sm font-medium">
               Subtotal: ₱{subtotal.toFixed(2)}
             </span>
 
             <div className="flex gap-4">
+              <button
+                onClick={() => {
+                  const productsToAdd = getSelectedProductsWithQuantities();
+                  if (productsToAdd.length === 0) {
+                    toast.error("No components selected", {
+                      description: "Please add at least one component before saving your build.",
+                    });
+                    return;
+                  }
+                  setIsSaveModalOpen(true);
+                }}
+                className="bg-purple-500 text-white px-6 py-2 rounded hover:bg-purple-600 font-semibold"
+              >
+                Save Build
+              </button>
               <button
                 onClick={handleAddToCart}
                 className="bg-lime-400 text-black px-6 py-2 rounded hover:bg-lime-500 font-semibold"
@@ -261,6 +297,13 @@ const BuildComponents = ({
               </button>
             </div>
           </div>
+          <SaveBuildModal
+            isOpen={isSaveModalOpen}
+            onClose={() => setIsSaveModalOpen(false)}
+            onSave={handleSaveBuild}
+            components={getSelectedProductsWithQuantities()}
+            subtotal={subtotal}
+          />
         </div>
       </div>
     </div>

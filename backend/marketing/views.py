@@ -5,8 +5,11 @@ from rest_framework.response import Response
 from django.db.models import Count, Avg, Q, Sum, F
 from django.utils import timezone
 
-from .models import Bundle, BundleItem, BundleRating
-from .serializers import BundleListSerializer, BundleDetailSerializer, BundleRatingSerializer, BundleItemSerializer
+from .models import Bundle, BundleItem, BundleRating, CustomBuild, CustomBuildItem
+from .serializers import (
+    BundleListSerializer, BundleDetailSerializer, BundleRatingSerializer, 
+    BundleItemSerializer, CustomBuildSerializer, CustomBuildItemSerializer
+)
 from products.models import Product, ProductCategory
 
 class BundleViewSet(viewsets.ModelViewSet):
@@ -278,3 +281,50 @@ class BundleViewSet(viewsets.ModelViewSet):
                 {'error': 'Product not found in bundle'},
                 status=status.HTTP_404_NOT_FOUND
             )
+
+
+class CustomBuildViewSet(viewsets.ModelViewSet):
+    queryset = CustomBuild.objects.filter(is_public=True)
+    serializer_class = CustomBuildSerializer
+    permission_classes = [permissions.AllowAny]
+    
+    def get_queryset(self):
+        """
+        Customize queryset based on user:
+        - Admins see all builds
+        - Authenticated users see public builds and their own
+        - Anonymous users see only public builds
+        """
+        queryset = CustomBuild.objects.all()
+        
+        # If not staff/admin, filter builds
+        user = self.request.user
+        if not user.is_authenticated or not user.is_staff:
+            if user.is_authenticated:
+                # Own builds + public builds
+                queryset = queryset.filter(Q(is_public=True) | Q(user=user))
+            else:
+                # Only public builds
+                queryset = queryset.filter(is_public=True)
+                
+        return queryset
+    
+    def perform_create(self, serializer):
+        """Set the user when creating a build"""
+        if self.request.user.is_authenticated:
+            serializer.save(user=self.request.user)
+        else:
+            serializer.save()
+            
+    @action(detail=False, methods=['get'])
+    def my_builds(self, request):
+        """Get the current user's builds"""
+        if not request.user.is_authenticated:
+            return Response(
+                {"detail": "Authentication required"},
+                status=status.HTTP_401_UNAUTHORIZED
+            )
+            
+        queryset = CustomBuild.objects.filter(user=request.user)
+        serializer = self.get_serializer(queryset, many=True)
+        return Response(serializer.data)

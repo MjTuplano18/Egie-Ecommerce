@@ -1,7 +1,13 @@
 from django.contrib import admin
 from django import forms
-from .models import ProductBundleDiscount, Bundle, BundleItem, BundleRating
+from .models import ProductBundleDiscount, Bundle, BundleItem, BundleRating, CustomBuild, CustomBuildItem
 from products.models import Product
+
+class CustomBuildItemInline(admin.TabularInline):
+    model = CustomBuildItem
+    extra = 1
+    fields = ['product', 'component_type', 'quantity', 'price']
+    readonly_fields = ['price']
 
 class BundleItemInline(admin.TabularInline):
     model = BundleItem
@@ -42,5 +48,20 @@ class BundleItemAdmin(admin.ModelAdmin):
     search_fields = ['bundle__name', 'product__name']
     readonly_fields = ['unit_price', 'subtotal']
 
+# Custom Build Admin
+class CustomBuildItemInline(admin.TabularInline):
+    model = CustomBuildItem
+    extra = 1
+    fields = ['product', 'component_type', 'quantity', 'price']
+    readonly_fields = ['price']
+
+@admin.register(CustomBuild)
+class CustomBuildAdmin(admin.ModelAdmin):
+    list_display = ['name', 'user', 'total_price', 'is_public', 'created_at']
+    list_filter = ['is_public', 'created_at']
+    search_fields = ['name', 'user__username', 'description']
+    inlines = [CustomBuildItemInline]
+
 # Register remaining models
 admin.site.register(ProductBundleDiscount)
+admin.site.register(CustomBuildItem)

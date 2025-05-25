@@ -1,5 +1,29 @@
 from django.db import models
 
+class CustomBuild(models.Model):
+    name = models.CharField(max_length=255)
+    user = models.ForeignKey('accounts.Customer', on_delete=models.CASCADE, related_name='custom_builds', null=True, blank=True)
+    description = models.TextField(blank=True, null=True)
+    total_price = models.DecimalField(max_digits=10, decimal_places=2)
+    is_public = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    def __str__(self):
+        return f"{self.name} by {self.user.username if self.user else 'Anonymous'}"
+
+
+class CustomBuildItem(models.Model):
+    build = models.ForeignKey(CustomBuild, on_delete=models.CASCADE, related_name='items')
+    product = models.ForeignKey('products.Product', on_delete=models.CASCADE)
+    quantity = models.PositiveIntegerField(default=1)
+    price = models.DecimalField(max_digits=10, decimal_places=2)
+    component_type = models.CharField(max_length=100)
+    
+    def __str__(self):
+        return f"{self.quantity}x {self.product.name} ({self.component_type}) in {self.build.name}"
+
+
 class Bundle(models.Model):
     name = models.CharField(max_length=100)
     description = models.TextField()

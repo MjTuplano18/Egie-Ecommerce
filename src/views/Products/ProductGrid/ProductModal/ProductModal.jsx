@@ -557,43 +557,59 @@ const ProductModal = ({ product: initialProduct, onClose }) => {
                     : "Out of stock"}
                 </span>
               </div>
-            </div>
-
-            {/* Buttons */}
+            </div>            {/* Buttons */}
             <Link
-              to={`/products/details/${product?.slug || product?.id}`}
-              className="block text-center text-blue-500 hover:underline mb-4"
-              onClick={() => {
-                console.log("Navigating to product details with slug/id:", product?.slug || product?.id);
+              to={product?.custom_build ? "#" : `/products/details/${product?.slug || product?.id}`}
+              className={`block text-center ${product?.custom_build ? 'text-purple-500' : 'text-blue-500'} hover:underline mb-4`}
+              onClick={(e) => {
+                if (product?.custom_build) {
+                  e.preventDefault();
+                  toast.info("Custom build details", {
+                    description: "This is a custom PC configuration saved by a user"
+                  });
+                } else {
+                  console.log("Navigating to product details with slug/id:", product?.slug || product?.id);
+                }
               }}
             >
-              View More Details
+              {product?.custom_build ? 'This is a custom build' : 'View More Details'}
             </Link>
 
             <div className="flex gap-3">
-              <button
-                onClick={handleAddToCart}
-                disabled={selectedStock <= 0}
-                className={`flex-1 border font-medium py-2 rounded transition text-center ${
-                  selectedStock <= 0
-                    ? 'bg-gray-300 text-gray-600 cursor-not-allowed'
-                    : 'bg-green-400 text-black hover:bg-green-900 hover:text-white'
-                }`}
-              >
-                {selectedStock <= 0 ? 'Out of Stock' : 'Add To Cart'}
-              </button>
+              {!product?.custom_build ? (
+                <>
+                  <button
+                    onClick={handleAddToCart}
+                    disabled={selectedStock <= 0}
+                    className={`flex-1 border font-medium py-2 rounded transition text-center ${
+                      selectedStock <= 0
+                        ? 'bg-gray-300 text-gray-600 cursor-not-allowed'
+                        : 'bg-green-400 text-black hover:bg-green-900 hover:text-white'
+                    }`}
+                  >
+                    {selectedStock <= 0 ? 'Out of Stock' : 'Add To Cart'}
+                  </button>
 
-              <button
-                onClick={handleBuyNow}
-                disabled={selectedStock <= 0}
-                className={`flex-1 font-medium py-2 rounded transition text-center ${
-                  selectedStock <= 0
-                    ? 'bg-gray-300 text-gray-600 cursor-not-allowed'
-                    : 'bg-green-400 text-black hover:bg-green-900 hover:text-white'
-                }`}
-              >
-                Buy Now
-              </button>
+                  <button
+                    onClick={handleBuyNow}
+                    disabled={selectedStock <= 0}
+                    className={`flex-1 font-medium py-2 rounded transition text-center ${
+                      selectedStock <= 0
+                        ? 'bg-gray-300 text-gray-600 cursor-not-allowed'
+                        : 'bg-green-400 text-black hover:bg-green-900 hover:text-white'
+                    }`}
+                  >
+                    Buy Now
+                  </button>
+                </>
+              ) : (
+                <button
+                  onClick={() => navigate("/systembuild")}
+                  className="flex-1 font-medium py-2 rounded transition text-center bg-purple-500 text-white hover:bg-purple-700"
+                >
+                  Create Your Own Build
+                </button>
+              )}
             </div>
           </div>
         </div>
