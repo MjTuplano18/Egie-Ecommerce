@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { useComponents } from "../../Data/components"; 
+import { useComponents } from "../../Data/components";
 import { FaMinus, FaPlus, FaTrash } from "react-icons/fa";
 import { Link } from "react-router-dom";
 import { toast } from "sonner";
@@ -49,8 +49,14 @@ const BuildComponents = ({
       const selectedProduct = selectedProducts[comp.type];
       if (selectedProduct && quantities[index] > 0) {
         acc.push({
-          ...selectedProduct,
-          quantity: quantities[index]
+          id: selectedProduct.id,
+          productName: selectedProduct.productName,
+          name: selectedProduct.productName, // For compatibility with cart
+          price: selectedProduct.price,
+          imageUrl: selectedProduct.imageUrl,
+          image: selectedProduct.imageUrl, // For compatibility with cart
+          quantity: quantities[index],
+          variation: selectedProduct.attribute_option
         });
       }
       return acc;
@@ -125,7 +131,7 @@ const BuildComponents = ({
                     <td className="p-2 border">{comp.type}</td>
                     <td className="p-2 border w68">
                       {selectedProduct ? (
-                        <div 
+                        <div
                           className="flex items-center gap-3 group cursor-pointer hover:bg-gray-50 p-2 rounded transition-colors"
                           onClick={() => {
                             if (window.confirm('Do you want to unselect this component?')) {
@@ -233,23 +239,26 @@ const BuildComponents = ({
               >
                 Add to Cart
               </button>
-              <Link
-                to="/checkout"
-                onClick={(e) => {
-                  const hasSelection = Object.keys(selectedProducts).length > 0;
-                  if (!hasSelection) {
-                    e.preventDefault();
+              <button
+                onClick={() => {
+                  const productsToAdd = getSelectedProductsWithQuantities();
+                  if (productsToAdd.length === 0) {
                     toast.error("No components selected", {
                       description: "Please add at least one component before proceeding to checkout.",
                     });
                     return;
                   }
-                  handleAddToCart();
+
+                  // Add products to cart before redirecting to checkout
+                  addManyToCart(productsToAdd);
+
+                  // Redirect directly to checkout page
+                  window.location.href = "/checkout";
                 }}
                 className="bg-blue-500 text-white px-6 py-2 rounded hover:bg-blue-600 font-semibold"
               >
                 Buy Now
-              </Link>
+              </button>
             </div>
           </div>
         </div>

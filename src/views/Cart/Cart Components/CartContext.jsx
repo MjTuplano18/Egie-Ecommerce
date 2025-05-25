@@ -41,7 +41,7 @@ export const CartProvider = ({ children }) => {
   // Function to refresh cart from server
   const refreshCart = async () => {
     if (!isAuthenticated || isSyncing) return;
-    
+
     try {
       setIsSyncing(true);
       const response = await cartService.getCart();
@@ -92,7 +92,7 @@ export const CartProvider = ({ children }) => {
       console.log('Handling login - merging carts');
       const localCart = getStoredCart();
       console.log('Local cart:', localCart);
-      
+
       if (localCart.length > 0) {
         // Add all local items to server cart
         for (const item of localCart) {
@@ -107,7 +107,7 @@ export const CartProvider = ({ children }) => {
           }
         }
       }
-      
+
       await refreshCart();
       clearStoredCart();
       console.log('Cart merge complete');
@@ -141,14 +141,14 @@ export const CartProvider = ({ children }) => {
     try {
       // Update local state immediately for better UX
       setCartItems(prevItems => {
-        const existingItem = prevItems.find(item => 
-          item.id === product.id && 
+        const existingItem = prevItems.find(item =>
+          item.id === product.id &&
           (!item.variation?.id || item.variation?.id === product.variation?.id)
         );
 
         const updatedItems = existingItem
-          ? prevItems.map(item => 
-              item.id === product.id 
+          ? prevItems.map(item =>
+              item.id === product.id
                 ? { ...item, quantity: (parseInt(item.quantity) || 1) + (parseInt(product.quantity) || 1) }
                 : item
             )
@@ -169,10 +169,10 @@ export const CartProvider = ({ children }) => {
       });
 
       if (isAuthenticated) {
-        const variationId = product.variation ? 
-          (typeof product.variation === 'object' ? product.variation.id : product.variation) : 
+        const variationId = product.variation ?
+          (typeof product.variation === 'object' ? product.variation.id : product.variation) :
           null;
-        
+
         await cartService.addToCart(
           product.id,
           parseInt(product.quantity) || 1,
@@ -209,11 +209,11 @@ export const CartProvider = ({ children }) => {
         await cartService.removeFromCart(itemId);
         await refreshCart();
       }
-      
+
       toast.success('Item removed from cart');
     } catch (error) {
       console.error('Failed to remove from cart:', error);
-      
+
       if (isAuthenticated) {
         toast.error('Removed from local cart only (server error)', {
           description: 'Your cart will be synchronized when connection is restored'
@@ -244,7 +244,7 @@ export const CartProvider = ({ children }) => {
       }
     } catch (error) {
       console.error('Failed to update quantity:', error);
-      
+
       if (isAuthenticated) {
         toast.error('Updated local cart only (server error)', {
           description: 'Your cart will be synchronized when connection is restored'
@@ -265,7 +265,7 @@ export const CartProvider = ({ children }) => {
       toast.success('Cart cleared');
     } catch (error) {
       console.error('Failed to clear cart:', error);
-      
+
       if (isAuthenticated) {
         toast.error('Cleared local cart only (server error)', {
           description: 'Your cart will be synchronized when connection is restored'
@@ -308,9 +308,86 @@ export const CartProvider = ({ children }) => {
       }, 0);
   };
 
+  const addManyToCart = async (products) => {
+    if (!products || !Array.isArray(products) || products.length === 0) {
+      toast.error('No products to add');
+      return;
+    }
+
+    try {
+      // Update local state immediately for better UX
+      setCartItems(prevItems => {
+        let updatedItems = [...prevItems];
+
+        for (const product of products) {
+          if (!product?.id) continue;
+
+          const existingItemIndex = updatedItems.findIndex(item =>
+            item.id === product.id &&
+            (!item.variation?.id || item.variation?.id === product.variation?.id)
+          );
+
+          if (existingItemIndex >= 0) {
+            // Update existing item
+            updatedItems[existingItemIndex] = {
+              ...updatedItems[existingItemIndex],
+              quantity: (parseInt(updatedItems[existingItemIndex].quantity) || 1) + (parseInt(product.quantity) || 1)
+            };
+          } else {
+            // Add new item
+            updatedItems.push({
+              id: product.id,
+              name: product.productName || product.name,
+              price: product.price || product.selling_price,
+              image: product.imageUrl || product.image || product.image_url || product.main_image,
+              quantity: parseInt(product.quantity) || 1,
+              variation: product.variation,
+              selected: true
+            });
+          }
+        }
+
+        if (!isAuthenticated) {
+          saveCartToStorage(updatedItems);
+        }
+        return updatedItems;
+      });
+
+      if (isAuthenticated) {
+        // Add each product to server cart
+        for (const product of products) {
+          if (!product?.id) continue;
+
+          const variationId = product.variation ?
+            (typeof product.variation === 'object' ? product.variation.id : product.variation) :
+            null;
+
+          await cartService.addToCart(
+            product.id,
+            parseInt(product.quantity) || 1,
+            variationId
+          );
+        }
+
+        await refreshCart();
+      }
+    } catch (error) {
+      console.error('Failed to add multiple items to cart:', error);
+
+      if (error.response?.status === 401 && !isAuthenticated) {
+        // Save to local storage if unauthorized
+        saveCartToStorage(cartItems);
+        toast.info('Added to local cart only (not logged in)');
+      } else {
+        toast.error('Some items may not have been added to cart (server error)');
+      }
+    }
+  };
+
   const value = {
     cartItems,
     addToCart,
+    addManyToCart,
     removeFromCart,
     updateQuantity,
     clearCart,

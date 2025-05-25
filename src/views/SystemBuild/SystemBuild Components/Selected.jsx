@@ -76,23 +76,20 @@ const Selected = ({ selectedType, onAddProduct }) => {
   const filteredProducts = products.filter((p) => {
     const matchesSearch = !searchTerm || p.name.toLowerCase().includes(searchTerm.toLowerCase());
     return matchesSearch;
-  });
-
-  const handleAdd = (product) => {
+  });  const handleAdd = (product) => {
     const processedProduct = {
       id: product.id,
       productName: product.name,
-      brand: product.brand?.name || "",
       price: product.selling_price,
       attribute_option: product.attribute_option,
       imageUrl: product.image_urls?.[0] || product.main_image
     };
 
+    // Only add to system builder, not to cart
     onAddProduct(selectedType, processedProduct);
-    addToCart({ ...processedProduct, quantity: 1 });
 
-    toast.success("Added to cart and build!", {
-      description: `${product.name} has been added to your cart and build.`,
+    toast.success("Added to build!", {
+      description: `${product.name} has been added to your build.`,
     });
   };
 
@@ -167,10 +164,9 @@ const Selected = ({ selectedType, onAddProduct }) => {
                         <span className="text-gray-400 text-xs">No image</span>
                       )}
                     </div>
-                    <div className="flex-1">
-                      <p className="font-semibold text-sm">{product.name}</p>
+                    <div className="flex-1">                      <p className="font-semibold text-sm">{product.name}</p>
                       <p className="text-xs text-gray-600 mb-2">
-                        {product.brand?.name} - {product.attribute_option}
+                        {product.attribute_option}
                       </p>
                       <p className="text-sm font-medium text-green-600">
                         ₱{Number(product.selling_price).toLocaleString()}
