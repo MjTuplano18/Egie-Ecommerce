@@ -22,7 +22,7 @@ import ContactUs from './views/ContactUs/ContactUs';
 import Notification from './views/Notifications/Notification';
 import Purchases from './views/Purchases/Purchases';
 import OrderDetails from './views/Purchases/Purchase Components/OrderDetails';
-import { CartProvider } from './contexts/CartContext';
+import { CartProvider } from './views/Cart/Cart Components/CartContext';
 import { Toaster } from "sonner";
 
 // Layout wrapper component

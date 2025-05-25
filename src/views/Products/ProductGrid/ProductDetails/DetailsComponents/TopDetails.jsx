@@ -17,7 +17,7 @@ import "slick-carousel/slick/slick-theme.css";
 import Slider from "react-slick";
 
 import { toast } from "sonner";
-import { useCart } from "@/contexts/CartContext";
+import { useCart } from "@/views/Cart/Cart Components/CartContext";
 
 // Styled components for slider
 const SliderContainer = styled.div`

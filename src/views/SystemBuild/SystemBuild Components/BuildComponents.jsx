@@ -1,9 +1,10 @@
-import React, { useState } from "react";
-import { components } from "../../Data/components";
+import React, { useState, useEffect } from "react";
+import { useComponents } from "../../Data/components"; 
 import { FaMinus, FaPlus, FaTrash } from "react-icons/fa";
 import { Link } from "react-router-dom";
 import { toast } from "sonner";
-import { useCart } from "@/contexts/CartContext";
+import { useCart } from "@/views/Cart/Cart Components/CartContext";
+import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 
 const BuildComponents = ({
   selectedType,
@@ -12,7 +13,13 @@ const BuildComponents = ({
   setSelectedProducts,
 }) => {
   const { addManyToCart } = useCart();
-  const [quantities, setQuantities] = useState(components.map(() => 1));
+  const { components, loading, error } = useComponents();
+  const [quantities, setQuantities] = useState([]);
+
+  // Initialize quantities when components load
+  useEffect(() => {
+    setQuantities(components.map(() => 1));
+  }, [components]);
 
   const handleDecrease = (index, compType) => {
     if (!selectedProducts[compType]) return;
@@ -59,7 +66,7 @@ const BuildComponents = ({
 
   const handleAddToCart = () => {
     const productsToAdd = getSelectedProductsWithQuantities();
-    
+
     if (productsToAdd.length === 0) {
       toast.error("No components selected", {
         description: "Please add at least one component before adding to cart.",
@@ -72,6 +79,25 @@ const BuildComponents = ({
       description: "Your products have been successfully added.",
     });
   };
+
+  if (loading) {
+    return (
+      <div className="w-[800px] mb-4 flex justify-center items-center">
+        <p>Loading component list...</p>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <Alert variant="destructive" className="w-[800px] mb-4">
+        <AlertTitle>Error loading components</AlertTitle>
+        <AlertDescription>
+          {error}. Using default component list.
+        </AlertDescription>
+      </Alert>
+    );
+  }
 
   return (
     <div className="w-[800px] mb-4">
@@ -91,7 +117,7 @@ const BuildComponents = ({
             <tbody>
               {components.map((comp, index) => {
                 const selectedProduct = selectedProducts[comp.type];
-                const price = selectedProduct?.price || 0;
+                const price = selectedProduct?.price ? parseFloat(selectedProduct.price) : 0;
                 const total = price * quantities[index];
 
                 return (
@@ -99,9 +125,48 @@ const BuildComponents = ({
                     <td className="p-2 border">{comp.type}</td>
                     <td className="p-2 border w68">
                       {selectedProduct ? (
-                        <span className="text-sm font-medium text-gray-800">
-                          {selectedProduct.productName}
-                        </span>
+                        <div 
+                          className="flex items-center gap-3 group cursor-pointer hover:bg-gray-50 p-2 rounded transition-colors"
+                          onClick={() => {
+                            if (window.confirm('Do you want to unselect this component?')) {
+                              handleDelete(index, comp.type);
+                            }
+                          }}
+                        >
+                          <div className="w-12 h-12 bg-gray-100 rounded-md flex items-center justify-center overflow-hidden">
+                            {selectedProduct.imageUrl ? (
+                              <img
+                                src={selectedProduct.imageUrl}
+                                alt={selectedProduct.productName}
+                                className="w-full h-full object-contain"
+                                onError={(e) => {
+                                  e.target.onError = null;
+                                  e.target.src = "https://via.placeholder.com/48?text=Product";
+                                }}
+                              />
+                            ) : (
+                              <span className="text-gray-400 text-xs">No image</span>
+                            )}
+                          </div>
+                          <div className="flex-1">
+                            <div className="flex flex-col">
+                              <p className="text-sm font-medium text-gray-800">
+                                {selectedProduct.productName}
+                              </p>
+                              {selectedProduct.brand && (
+                                <p className="text-xs text-gray-500">
+                                  Brand: {selectedProduct.brand}
+                                </p>
+                              )}
+                              <p className="text-sm font-medium text-green-600">
+                                ₱{Number(selectedProduct.price).toLocaleString()}
+                              </p>
+                            </div>
+                          </div>
+                          <span className="text-xs text-gray-400 opacity-0 group-hover:opacity-100">
+                            Click to unselect
+                          </span>
+                        </div>
                       ) : (
                         <button
                           onClick={() => setSelectedType(comp.type)}
@@ -160,6 +225,7 @@ const BuildComponents = ({
             <span className="text-sm font-medium">
               Subtotal: ₱{subtotal.toFixed(2)}
             </span>
+
             <div className="flex gap-4">
               <button
                 onClick={handleAddToCart}

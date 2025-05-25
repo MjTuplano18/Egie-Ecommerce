@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { useCart } from "@/contexts/CartContext";
+import { useCart } from "@/views/Cart/Cart Components/CartContext";
 
 const OrderSum = () => {
   const navigate = useNavigate();
@@ -43,7 +43,7 @@ const OrderSum = () => {
       </p>
 
       <hr className="my-4 stroke-black" />
-      
+
       <div className="space-y-4 mb-6">
         {orderDetails?.items.map((item, index) => (
           <div key={index} className="flex items-start p-4 border rounded-lg hover:bg-gray-50 transition-colors">
@@ -62,7 +62,7 @@ const OrderSum = () => {
                   ₱{(item.price * item.quantity).toLocaleString()}
                 </p>
               </div>
-              
+
               <div className="text-sm text-gray-600 space-y-1">
                 {item.variation && (
                   <p>Variation: {item.variation}</p>

@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from "react";
 import { Link, useLocation } from "react-router-dom";
 import "../../../../src/index.css";
 import "flowbite";
-import { useCart } from "@/contexts/CartContext";
+import { useCart } from "@/views/Cart/Cart Components/CartContext";
 import { IoNotifications } from "react-icons/io5";
 import { FaShoppingCart } from "react-icons/fa";
 import { FaSquareFacebook } from "react-icons/fa6";
@@ -68,16 +68,16 @@ const Navbar = ({isAuth}) => {
 
   const navigate = useNavigate();
   const location = useLocation();
-  
+
   const isProductsActive = location.pathname.startsWith("/products");
   const isActive = (path) => location.pathname === path;
 
   useEffect(() => {
     function handleClickOutside(event) {
       if (
-        dropdownRef.current && 
-        !dropdownRef.current.contains(event.target) && 
-        buttonRef.current && 
+        dropdownRef.current &&
+        !dropdownRef.current.contains(event.target) &&
+        buttonRef.current &&
         !buttonRef.current.contains(event.target)
       ) {
         setDropdownOpen(false);
@@ -440,8 +440,8 @@ const Navbar = ({isAuth}) => {
                   <div
                     ref={dropdownRef}
                     className={`z-50 ${
-                      dropdownOpen 
-                        ? 'block opacity-100 transform translate-y-0' 
+                      dropdownOpen
+                        ? 'block opacity-100 transform translate-y-0'
                         : 'hidden opacity-0 transform -translate-y-2'
                     } absolute top-16 right-0 my-4 text-base list-none bg-white divide-y divide-gray-100 rounded-lg shadow-lg dark:bg-gray-700 dark:divide-gray-600 min-w-[250px] transition-all duration-200 ease-in-out`}
                     id="user-dropdown"

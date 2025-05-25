@@ -15,7 +15,7 @@ import { IoBookmark, IoCloseCircleOutline } from "react-icons/io5";
 import { AiFillInstagram } from "react-icons/ai";
 import { FaXTwitter } from "react-icons/fa6";
 import { toast } from "sonner";
-import { useCart } from "@/contexts/CartContext";
+import { useCart } from "@/views/Cart/Cart Components/CartContext";
 
 // Styled components for slider
 const SliderContainer = styled.div`

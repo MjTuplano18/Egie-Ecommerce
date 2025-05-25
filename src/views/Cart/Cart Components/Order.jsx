@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { useCart } from "@/contexts/CartContext";
+import { useCart } from "@/views/Cart/Cart Components/CartContext";
 import { toast } from "sonner";
 
 const Order = ({ subtotal, discount, total }) => {
@@ -8,7 +8,7 @@ const Order = ({ subtotal, discount, total }) => {
   const { cartItems } = useCart();
   const [deliveryMethod, setDeliveryMethod] = useState("pickup");
   const [orderNote, setOrderNote] = useState("");
-  
+
   return (
     <div className="bg-white shadow p-4 rounded w-full max-w-sm">
       <div className="mb-6">
@@ -38,7 +38,7 @@ const Order = ({ subtotal, discount, total }) => {
 
       <h3 className="font-semibold mb-4">Delivery Method</h3>
       <div className="flex justify-between mb-6">
-        <button 
+        <button
           onClick={() => setDeliveryMethod('delivery')}
           className={`px-4 py-2 rounded transition-colors ${
             deliveryMethod === 'delivery'
@@ -48,7 +48,7 @@ const Order = ({ subtotal, discount, total }) => {
         >
           Local Delivery
         </button>
-        <button 
+        <button
           onClick={() => setDeliveryMethod('pickup')}
           className={`px-4 py-2 rounded transition-colors ${
             deliveryMethod === 'pickup'

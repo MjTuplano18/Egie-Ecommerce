@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { FaCcVisa } from "react-icons/fa";
 import { RiMastercardFill } from "react-icons/ri";
-import { useCart } from "@/contexts/CartContext";
+import { useCart } from "@/views/Cart/Cart Components/CartContext";
 import { toast } from "sonner";
 import { userService, orderService } from "@/services/api";
 
@@ -66,8 +66,8 @@ const Payment = () => {
     try {
       // Get delivery address
       const addressData = await userService.getAddress();
-      const fullAddress = addressData ? 
-        `${addressData.address_line}, ${addressData.city}, ${addressData.province}, ${addressData.postal_code}, ${addressData.country}` 
+      const fullAddress = addressData ?
+        `${addressData.address_line}, ${addressData.city}, ${addressData.province}, ${addressData.postal_code}, ${addressData.country}`
         : '';
 
       // Create new order using orderService
@@ -191,7 +191,7 @@ const Payment = () => {
           />
         </div>
       )}
-      
+
       <div className="flex space-x-2 mb-4">
         <FaCcVisa size={22} />
         <RiMastercardFill size={22} />

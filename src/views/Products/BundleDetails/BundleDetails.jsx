@@ -7,7 +7,7 @@ import { FaArrowLeft, FaArrowRight, FaFacebook, FaFacebookMessenger } from "reac
 import { AiFillInstagram } from "react-icons/ai";
 import { FaXTwitter } from "react-icons/fa6";
 import { toast } from "sonner";
-import { useCart } from "@/contexts/CartContext";
+import { useCart } from "@/views/Cart/Cart Components/CartContext";
 import "slick-carousel/slick/slick.css";
 import "slick-carousel/slick/slick-theme.css";
 import BundleReviews from './BundleReviews';
@@ -61,7 +61,7 @@ const BundleDetails = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const { addToCart } = useCart();
-  
+
   // State management
   const [bundle, setBundle] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -71,7 +71,7 @@ const BundleDetails = () => {
   const [nav2, setNav2] = useState(null);
   const [quantity, setQuantity] = useState(1);
   const [reviews, setReviews] = useState([]);
-  
+
   // Refs for sliders
   const sliderRef1 = useRef(null);
   const sliderRef2 = useRef(null);
@@ -115,7 +115,7 @@ const BundleDetails = () => {
 
         // Collect images from bundle and products
         const images = [];
-        
+
         // Add bundle image if available
         if (bundleData.image) {
           images.push(bundleData.image);
@@ -140,7 +140,7 @@ const BundleDetails = () => {
           review: rating.review,
           created_at: rating.createdAt
         })) || []);
-        
+
         // Update bundle data with correct price fields
         const finalBundleData = {
           ...bundleData,
@@ -198,7 +198,7 @@ const BundleDetails = () => {
           subtotal: item.subtotal
         }))
       });
-      
+
       toast.success("Bundle added to cart!", {
         description: "Your bundle has been successfully added."
       });
@@ -304,7 +304,7 @@ const BundleDetails = () => {
 
         <div className="w-full md:w-2/3 bg-white p-4 rounded-lg">
           <h1 className="text-2xl font-semibold mb-2">{bundle.title}</h1>
-          
+
           <div className="flex justify-between text-sm text-gray-500 mb-4">
             <div>
               <span>{bundle.rating ? `${bundle.rating} Stars` : "No Ratings Yet"}</span> ·
@@ -325,7 +325,7 @@ const BundleDetails = () => {
             <div className="text-2xl font-bold text-green-700">
               ₱{parseFloat(bundle.discounted_price).toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
             </div>
-            
+
             <div className="flex items-center gap-4">
               <div className="text-lg text-gray-500 line-through">
                 ₱{parseFloat(bundle.total_price).toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
@@ -399,7 +399,7 @@ const BundleDetails = () => {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">              {bundle.items?.map((item, index) => {
                 const product = item.product;
                 return (
-                  <div 
+                  <div
                     key={product.id || index}
                     className="border rounded-lg p-4 hover:shadow-lg transition cursor-pointer hover:border-green-500"
                     onClick={() => navigate(`/products/details/${product.id}`)}

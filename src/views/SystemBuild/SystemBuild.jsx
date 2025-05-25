@@ -5,14 +5,17 @@ import { FaInfoCircle } from "react-icons/fa";
 
 const SystemBuild = () => {
   const [selectedType, setSelectedType] = useState(null);
-const [selectedProducts, setSelectedProducts] = useState({});
+  const [selectedProducts, setSelectedProducts] = useState({});
 
-const handleAddProduct = (type, product) => {
-  setSelectedProducts((prev) => ({
-    ...prev,
-    [type]: product,
-  }));
-};
+  const handleAddProduct = (type, product) => {
+    setSelectedProducts((prev) => ({
+      ...prev,
+      [type]: {
+        ...product,
+        brand: product.brand?.name || product.brand, // Handle both object and string cases
+      },
+    }));
+  };
 
   return (
     <div className="flex flex-col mt-4">

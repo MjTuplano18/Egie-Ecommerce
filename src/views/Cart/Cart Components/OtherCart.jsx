@@ -2,45 +2,45 @@ import React, { useState } from "react";
 import ProductModal from "../../Products/ProductGrid/ProductModal/ProductModal";
 
 const OtherCart = () => {
-    const [selectedProduct, setSelectedProduct] = useState(null);
+  const [selectedProduct, setSelectedProduct] = useState(null);
   const products = [
     {
-      image: "https://via.placeholder.com/150",
+      image: "https://via.placeholder.com/150?text=Gaming+Mouse",
       description: "Wireless Gaming Mouse",
       price: "₱1,299",
     },
     {
-      image: "https://via.placeholder.com/150",
+      image: "https://via.placeholder.com/150?text=Keyboard",
       description: "Mechanical Keyboard RGB",
       price: "₱2,599",
     },
     {
-      image: "https://via.placeholder.com/150",
+      image: "https://via.placeholder.com/150?text=Webcam",
       description: "1080p HD Webcam",
       price: "₱999",
     },
     {
-      image: "https://via.placeholder.com/150",
+      image: "https://via.placeholder.com/150?text=Cooling+Pad",
       description: "Laptop Cooling Pad",
       price: "₱749",
     },
     {
-      image: "https://via.placeholder.com/150",
+      image: "https://via.placeholder.com/150?text=USB+Hub",
       description: "USB-C Hub Multiport",
       price: "₱1,199",
     },
     {
-      image: "https://via.placeholder.com/150",
+      image: "https://via.placeholder.com/150?text=Headset",
       description: "Bluetooth Headset",
       price: "₱1,499",
     },
     {
-      image: "https://via.placeholder.com/150",
+      image: "https://via.placeholder.com/150?text=SSD",
       description: "External SSD 500GB",
       price: "₱3,499",
     },
     {
-      image: "https://via.placeholder.com/150",
+      image: "https://via.placeholder.com/150?text=Laptop+Stand",
       description: "Adjustable Laptop Stand",
       price: "₱899",
     },
@@ -60,10 +60,18 @@ const OtherCart = () => {
           >
             <img
               src={product.image}
-              alt="Product"
-              className="w-full h-[100px] object-cover rounded"
+              alt={product.description}
+              className="w-full h-[100px] object-contain rounded"
+              onError={(e) => {
+                e.target.onerror = null;
+                e.target.src = `https://via.placeholder.com/150?text=${encodeURIComponent(
+                  product.description
+                )}`;
+              }}
             />
-            <p className="text-sm text-gray-600 mt-2">{product.description}</p>
+            <p className="text-sm text-gray-600 mt-2 line-clamp-2">
+              {product.description}
+            </p>
             <p className="font-bold text-gray-800">{product.price}</p>
           </div>
         ))}

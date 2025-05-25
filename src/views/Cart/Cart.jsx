@@ -2,7 +2,7 @@ import React from "react";
 import CartItems from "./Cart Components/CartItems";
 import Order from "./Cart Components/Order";
 import OtherCart from "./Cart Components/OtherCart";
-import { useCart } from "@/contexts/CartContext";
+import { useCart } from "@/views/Cart/Cart Components/CartContext";
 
 const Cart = () => {  
   const { 

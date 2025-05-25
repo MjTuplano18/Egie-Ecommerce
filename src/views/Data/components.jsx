@@ -1,91 +1,82 @@
 import { useState, useEffect } from 'react';
-import { productService } from '../../services/api';
+import axios from 'axios';
 
-// Define the category structure (this stays static as it's part of the UI structure)
-export const categoryStructure = [
-  {
-    type: "Processor",
-    imageUrl: "/processor.png",
-  },
-  {
-    type: "RAM",
-    imageUrl: "/ram.png",
-  },
-  {
-    type: "Keyboard",
-    imageUrl: "/keyboard.png",
-  },
-  {
-    type: "Mouse",
-    imageUrl: "/mouse.png",
-  },
-  {
-    type: "Headset/Speaker",
-    imageUrl: "/headset-speaker.png",
-  },
-  {
-    type: "Extra (AIO)",
-    imageUrl: "/aio.png",
-  }
+// Default system builder categories in case API call fails
+const defaultComponents = [
+  { type: "Processor" },
+  { type: "Motherboard" },
+  { type: "RAM" },
+  { type: "Storage" },
+  { type: "Power Supply" },
+  { type: "Case" },
+  { type: "Graphics Card" },
+  { type: "CPU Cooling" },
+  { type: "Case Fan" },
+  { type: "Monitor" },
+  { type: "Keyboard" },
+  { type: "Mouse" },
 ];
 
-// Custom hook to fetch products with category mapping
-export const useProducts = () => {
-  const [products, setProducts] = useState([]);
+// Custom hook to fetch buildable component categories
+export const useComponents = () => {
+  const [components, setComponents] = useState(defaultComponents); 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
   useEffect(() => {
-    const fetchProducts = async () => {
+    const fetchComponents = async () => {
       try {
-        // Fetch all categories first
-        const categories = await productService.getCategories();
-        
-        // For each category structure, fetch its products
-        const productsPromises = categoryStructure.map(async (category) => {
-          const matchingCategory = categories.find(c => 
-            c.name.toLowerCase() === category.type.toLowerCase()
-          );
-          
-          if (matchingCategory) {
-            const categoryProducts = await productService.getProductsByCategory(matchingCategory.name);
-            return {
-              ...category,
-              products: categoryProducts.map(p => ({
-                id: p.id,
-                productName: p.name,
-                brand: p.brand.name,
-                price: p.selling_price,
-                subCategory: p.category.name,
-                ratings: p.rating,
-                newArrivals: p.is_new_arrival,
-                isTopSeller: p.is_top_seller,
-                isFeatured: p.is_featured,
-                description: p.short_description,
-                specifications: p.specifications,
-                stock: p.stock,
-                imageUrl: p.image_url
-              }))
-            };
-          }
-          return { ...category, products: [] };
+        setLoading(true);
+        const response = await axios.get('http://localhost:8000/api/categories/');
+        const allCategories = response.data;
+
+        // Filter out laptop categories and only keep component categories
+        const buildComponents = allCategories.filter(category => {
+          const name = category.name.toLowerCase();
+          // Exclude laptop category
+          if (name.includes('laptop')) return false;
+
+          // Include if it matches any of these common PC component words
+          const isComponent = [
+            'processor', 'cpu',
+            'motherboard', 'mobo',
+            'ram', 'memory', 
+            'storage', 'ssd', 'hdd', 'drive',
+            'power supply', 'psu',
+            'case', 'chassis',
+            'graphics', 'gpu',
+            'cooling', 'fan',
+            'monitor', 'display',
+            'keyboard',  
+            'mouse',
+          ].some(term => name.includes(term));
+
+          return isComponent;
         });
 
-        const loadedProducts = await Promise.all(productsPromises);
-        setProducts(loadedProducts);
-        setLoading(false);
+        // Map to the format expected by the system builder
+        const formattedComponents = buildComponents.map(category => ({
+          type: category.name,
+          categoryId: category.id
+        }));
+
+        setComponents(formattedComponents);
+        setError(null);
       } catch (err) {
-        console.error('Error loading products:', err);
+        console.error('Error fetching buildable components:', err);
         setError(err.message);
-        setLoading(false);
+        // Fallback to default components on error 
+        setComponents(defaultComponents);
+      } finally {
+        setLoading(false);  
       }
     };
 
-    fetchProducts();
+    fetchComponents();
   }, []);
 
-  return { products, loading, error };
+  return { components, loading, error };
 };
 
-// For components that just need the static structure
-export const components = categoryStructure;
+// For static access to the default components
+export const components = defaultComponents;
