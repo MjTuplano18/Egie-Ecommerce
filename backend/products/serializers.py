@@ -8,10 +8,11 @@ from .models import (
 
 class ProductCategorySerializer(serializers.ModelSerializer):
     image_url = serializers.SerializerMethodField()
+    variation_type = serializers.CharField(source='variation_type_display')
 
     class Meta:
         model = ProductCategory
-        fields = ['id', 'name', 'image', 'image_url', 'parent']
+        fields = ['id', 'name', 'image', 'image_url', 'parent', 'variation_type', 'default_variation_type']
 
     def get_image_url(self, obj):
         if obj.image:
@@ -74,19 +75,23 @@ class ProductSpecificationSerializer(serializers.ModelSerializer):
 
 class ProductListSerializer(serializers.ModelSerializer):
     brand_name = serializers.CharField(source='brand.name', read_only=True)
+    brand = BrandSerializer(read_only=True)
     category_name = serializers.CharField(source='category.name', read_only=True)
     main_image = serializers.SerializerMethodField()
+    image_urls = serializers.SerializerMethodField()
     total_stock = serializers.ReadOnlyField()
     has_variations = serializers.SerializerMethodField()
     spec_entries = ProductSpecificationSerializer(many=True, read_only=True)
+    attribute_option = serializers.SerializerMethodField()
 
     class Meta:
         model = Product
         fields = [
             'id', 'slug', 'name', 'short_description', 'selling_price',
-            'original_price', 'brand_name', 'category_name', 'sub_category', 'rating',
-            'is_featured', 'is_new_arrival', 'is_top_seller', 'main_image',
-            'stock', 'total_stock', 'has_variations', 'specifications', 'spec_entries', 'variations'
+            'original_price', 'brand_name', 'brand', 'category_name', 'sub_category', 'rating',
+            'is_featured', 'is_new_arrival', 'is_top_seller', 'main_image', 'image_urls',
+            'stock', 'total_stock', 'has_variations', 'specifications', 'spec_entries', 'variations',
+            'attribute_option'
         ]
 
     def get_has_variations(self, obj):
@@ -97,9 +102,48 @@ class ProductListSerializer(serializers.ModelSerializer):
         if feature_image and feature_image.image:
              return feature_image.image.url
 
-        first_image =obj.images.first()
+        first_image = obj.images.first()
         if first_image and first_image.image:
             return first_image.image.url
+        return None
+
+    def get_image_urls(self, obj):
+        """Get all image URLs for the product"""
+        return [img.image.url for img in obj.images.all() if img.image]
+
+    def get_attribute_option(self, obj):
+        """
+        Get the primary attribute option for this product based on its category.
+        For example:
+        - For Processors: returns the "Model" value (e.g., "Ryzen 7", "i7")
+        - For RAM: returns the "Capacity" value (e.g., "8GB", "16GB")
+        """
+        # Try to get the category variation type
+        try:
+            category = obj.category
+            variation_type = CategoryVariationType.objects.get(category=category)
+            attribute_type = variation_type.attribute_type
+
+            # Find product attributes with this type
+            product_attrs = ProductAttribute.objects.filter(
+                product=obj,
+                attribute__type=attribute_type
+            ).first()
+
+            if product_attrs:
+                return product_attrs.attribute.value
+
+            # If no attribute found, check specifications
+            if variation_type.name in obj.specifications:
+                return obj.specifications[variation_type.name]
+
+        except Exception:
+            # If anything fails, try to extract from specifications
+            if obj.category and obj.category.default_variation_type:
+                variation_name = obj.category.default_variation_type
+                if variation_name in obj.specifications:
+                    return obj.specifications[variation_name]
+
         return None
 
 class RatingReviewSerializer(serializers.ModelSerializer):

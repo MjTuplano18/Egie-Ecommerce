@@ -35,6 +35,8 @@ ALLOWED_HOSTS = ["localhost", "127.0.0.1"]
 
 CSRF_TRUSTED_ORIGINS = [
     "http://localhost:5173",
+    "http://127.0.0.1:8000",
+    "http://localhost:3000",
 ]
 FRONTEND_URL = 'http://localhost:5173'
 
@@ -71,6 +73,7 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    'orders.middleware.CartMiddleware',  # Add cart middleware
 ]
 
 CORS_ALLOW_ALL_ORIGINS = True  # Only for development
@@ -80,6 +83,13 @@ CORS_ALLOWED_ORIGINS = [
    "http://127.0.0.1:8000",  # Django dev server
    "http://localhost:3000",  # Alternative React port
 ]
+
+# CSRF Settings
+CSRF_COOKIE_NAME = 'csrftoken'
+CSRF_HEADER_NAME = 'HTTP_X_CSRFTOKEN'
+CSRF_COOKIE_HTTPONLY = False
+CSRF_USE_SESSIONS = False
+CSRF_COOKIE_SAMESITE = 'Lax'
 
 # Allow all headers
 CORS_ALLOW_HEADERS = [
@@ -199,6 +209,8 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 CSRF_TRUSTED_ORIGINS = [
     "http://localhost:5173",
+    "http://127.0.0.1:8000",
+    "http://localhost:3000",
 ]
 
 # Email settings
@@ -231,3 +243,9 @@ SIMPLE_JWT = {
     'VERIFYING_KEY': None,
     'AUTH_HEADER_TYPES': ('Bearer',),
 }
+
+# CORS and CSRF settings
+CSRF_COOKIE_SAMESITE = 'Lax'
+SESSION_COOKIE_SAMESITE = 'Lax'
+CSRF_COOKIE_HTTPONLY = False  # False since we need to access it from JavaScript
+SESSION_COOKIE_HTTPONLY = True

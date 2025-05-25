@@ -11,6 +11,7 @@ router.register(r'colors', views.ColorViewSet)
 urlpatterns = [
     path('', include(router.urls)),
     path('search/', views.search_products, name='search-products'),
+    path('variation-values/', views.variation_values_by_category, name='variation-values'),
     # These endpoints are handled by @action decorators in ProductViewSet
     path('products/new-arrivals/', views.ProductViewSet.as_view({'get': 'new_arrivals'}), name='new-arrivals'),
     path('products/top_sellers/', views.ProductViewSet.as_view({'get': 'top_sellers'}), name='top-sellers'),

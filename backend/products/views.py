@@ -65,6 +65,11 @@ class ProductViewSet(viewsets.ModelViewSet):
         if category_name:
             queryset = queryset.filter(category__name=category_name)
 
+        # Filter by subcategory
+        subcategory_name = self.request.query_params.get('subcategory__name')
+        if subcategory_name and subcategory_name != 'all':
+            queryset = queryset.filter(sub_category__iexact=subcategory_name)
+
         min_price = self.request.query_params.get('min_price')
         max_price = self.request.query_params.get('max_price')
         if min_price:
@@ -135,6 +140,36 @@ class CategoryViewSet(viewsets.ModelViewSet):
     queryset = ProductCategory.objects.all()
     serializer_class = ProductCategorySerializer
     permission_classes = [AllowAny]
+    lookup_field = 'name'  # Allow looking up categories by name
+
+    @action(detail=False, methods=['get'])
+    def subcategories(self, request):
+        """Get subcategories for a specific category"""
+        category_name = request.query_params.get('category', '')
+        if not category_name:
+            return Response({'message': 'Category parameter is required'}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            # Get the parent category
+            parent_category = ProductCategory.objects.get(name=category_name)
+            # Get all subcategories
+            subcategories = Product.objects.filter(
+                category=parent_category
+            ).values('sub_category').distinct()
+            
+            # Extract unique subcategory names
+            subcategory_list = [
+                {'id': idx, 'name': item['sub_category']} 
+                for idx, item in enumerate(subcategories) 
+                if item['sub_category']
+            ]
+            
+            return Response(subcategory_list)
+        except ProductCategory.DoesNotExist:
+            return Response(
+                {'message': f'Category "{category_name}" not found'}, 
+                status=status.HTTP_404_NOT_FOUND
+            )
 
     @action(detail=True, methods=['get'])
     def products(self, request, pk=None):
@@ -255,4 +290,25 @@ def products_by_category_name(request):
 
     serializer = ProductListSerializer(products, many=True)
     return Response(serializer.data)
+
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def variation_values_by_category(request):
+    category_name = request.query_params.get('category', '')
+    if not category_name:
+        return Response({'message': 'Category name parameter is required'}, status=status.HTTP_400_BAD_REQUEST)
+
+    try:
+        category = ProductCategory.objects.get(name=category_name)
+        variation_type = category.variation_type
+
+        if variation_type and variation_type.attribute_type:
+            values = AttributeOption.objects.filter(
+                type=variation_type.attribute_type
+            ).values_list('value', flat=True)
+            return Response(list(values))
+
+        return Response([])
+    except ProductCategory.DoesNotExist:
+        return Response({'message': f'Category "{category_name}" not found'}, status=status.HTTP_404_NOT_FOUND)
 

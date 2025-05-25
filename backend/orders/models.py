@@ -1,19 +1,90 @@
 from django.db import models
+from django.utils import timezone
 
 class Cart(models.Model):
-    user = models.ForeignKey('accounts.Customer', on_delete=models.CASCADE, related_name='cart')
+    user = models.OneToOneField('accounts.Customer', on_delete=models.CASCADE, related_name='cart', null=True, blank=True)
+    last_activity = models.DateTimeField(auto_now=True)
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-created_at']
 
     def __str__(self):
-        return f"Cart of {self.user.username}"
+        if self.user:
+            return f"Cart of {self.user.username}"
+        return f"Anonymous Cart #{self.id}"
+
+    def is_expired(self):
+        from datetime import timedelta
+        from django.utils import timezone
+        return timezone.now() - self.last_activity > timedelta(days=7)
+
+    def reactivate(self):
+        """Reactivate an inactive cart"""
+        from django.utils import timezone
+        # Only reactivate if not expired
+        if not self.is_expired():
+            self.is_active = True
+            self.last_activity = timezone.now()
+            return True
+        return False
+
+    def deactivate(self):
+        """Deactivate cart"""
+        self.is_active = False
+        self.save()
+
+    @property
+    def total(self):
+        """Calculate total price of all items in cart"""
+        return sum(item.subtotal for item in self.items.all())
+    
+    @property
+    def items_count(self):
+        """Get number of unique items in cart"""
+        return self.items.count()
+    
+    @property
+    def total_quantity(self):
+        """Get total quantity of all items in cart"""
+        return sum(item.quantity for item in self.items.all())
 
 class CartItem(models.Model):
     cart = models.ForeignKey(Cart, on_delete=models.CASCADE, related_name='items')
     product = models.ForeignKey('products.Product', on_delete=models.CASCADE)
-    quantity = models.PositiveIntegerField()
+    variation = models.ForeignKey('products.ProductVariation', null=True, blank=True, 
+                                on_delete=models.SET_NULL, related_name='cart_items')
+    quantity = models.PositiveIntegerField(default=1)
+    selected = models.BooleanField(default=True)
     createdAt = models.DateTimeField(auto_now_add=True)
 
+    class Meta:
+        unique_together = ('cart', 'product', 'variation')
+
     def __str__(self):
-        return f"{self.quantity} of {self.product.productName} in {self.cart.user.username}'s cart"
+        variation_name = f" ({self.variation.name})" if self.variation else ""
+        cart_owner = self.cart.user.username if self.cart.user else f"Anonymous Cart #{self.cart.id}"
+        return f"{self.quantity} of {self.product.name}{variation_name} in {cart_owner}'s cart"
+
+    @property
+    def unit_price(self):
+        """Get price of single unit considering variations"""
+        if self.variation:
+            return self.variation.final_price
+        return self.product.selling_price
+
+    @property
+    def subtotal(self):
+        """Calculate total price for this item"""
+        return self.unit_price * self.quantity
+
+    def clean(self):
+        """Validate stock availability"""
+        from django.core.exceptions import ValidationError
+        available_stock = self.variation.stock if self.variation else self.product.stock
+        if self.quantity > available_stock:
+            raise ValidationError(f'Only {available_stock} items available in stock')
 
 class OrderDetails(models.Model):
     class OrderStatus(models.TextChoices):

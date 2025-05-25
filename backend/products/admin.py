@@ -5,7 +5,7 @@ from .models import (
     ProductCategory, Brand, Color, Product, ProductImage,
     AttributeType, AttributeOption, ProductAttribute, ProductVariation,
     ProductInventory, Discount, RatingReview, ProductPerformance,
-    ProductSpecification
+    ProductSpecification, CategoryVariationType
 )
 
 class ProductInventoryInline(admin.TabularInline):
@@ -85,9 +85,14 @@ class ProductAdmin(admin.ModelAdmin):
         }),
     )
 
+@admin.register(CategoryVariationType)
+class CategoryVariationTypeAdmin(admin.ModelAdmin):
+    list_display = ('category', 'name')
+    search_fields = ('category__name', 'name')
+
 @admin.register(ProductCategory)
 class ProductCategoryAdmin(admin.ModelAdmin):
-    list_display = ('name', 'parent')
+    list_display = ('name', 'parent', 'default_variation_type')
     search_fields = ('name',)
     list_filter = ('parent',)
 

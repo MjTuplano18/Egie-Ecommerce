@@ -4,128 +4,227 @@ from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework.response import Response
 from rest_framework import status
+from django.views.decorators.csrf import ensure_csrf_cookie, csrf_protect
 from .models import Cart, CartItem, OrderDetails, OrderItem, Payment, Shipping
-from products.models import Product
+from products.models import Product, ProductVariation
 from django.db import transaction
 
 @api_view(['GET'])
-@permission_classes([IsAuthenticated])
+@permission_classes([AllowAny])  # Allow anonymous users
+@ensure_csrf_cookie
 def cart_view(request):
     """Get user's cart"""
-    print(f"Cart view request for user: {request.user.username}")
-
-    # Get or create cart for the user
-    cart, created = Cart.objects.get_or_create(user=request.user)
-    print(f"Cart: {cart.id}, Created: {created}")
-
-    # Get all cart items
-    cart_items = CartItem.objects.filter(cart=cart).select_related('product')
-    print(f"Found {cart_items.count()} cart items")
-
-    # Calculate total
-    total = sum(item.product.selling_price * item.quantity for item in cart_items)
-
-    # Format response
-    items = []
-    for item in cart_items:
-        image_url = None
-        feature_image = item.product.images.filter(is_feature=True).first()
-        if feature_image and feature_image.image:
-            image_url = feature_image.image.url
+    try:
+        if request.user.is_authenticated:
+            # Get or create cart for logged in user
+            cart, created = Cart.objects.get_or_create(
+                user=request.user,
+                defaults={'is_active': True}
+            )
         else:
-            first_image = item.product.images.first()
-            if first_image and first_image.image:
-                image_url = first_image.image.url
+            # Get or create temporary cart for anonymous user
+            temp_cart_id = request.session.get('temp_cart_id')
+            if temp_cart_id:
+                try:
+                    cart = Cart.objects.get(id=temp_cart_id)
+                except Cart.DoesNotExist:
+                    cart = Cart.objects.create(user=None)
+                    request.session['temp_cart_id'] = cart.id
+            else:
+                cart = Cart.objects.create(user=None)
+                request.session['temp_cart_id'] = cart.id
 
-        items.append({
-            'id': item.id,
-            'product_id': item.product.id,
-            'name': item.product.name,
-            'price': float(item.product.selling_price),
-            'quantity': item.quantity,
-            'subtotal': float(item.product.selling_price * item.quantity),
-            'image': image_url
-        })
-        print(f"Added item to response: {item.product.name}, ID: {item.id}, Product ID: {item.product.id}")
+        if not cart.is_active:
+            cart.reactivate()
+            cart.save()
 
-    response_data = {
-        'items': items,
-        'total': float(total),
-        'item_count': len(items)
-    }
-    print(f"Returning cart with {len(items)} items, total: {total}")
+        # Get all cart items with related products and variations
+        cart_items = CartItem.objects.filter(cart=cart).select_related(
+            'product', 'variation', 'product__brand'
+        ).prefetch_related('product__images')
 
-    return Response(response_data)
+        # Format response
+        items = []
+        for item in cart_items:
+            # Get product image
+            image_url = None
+            feature_image = item.product.images.filter(is_feature=True).first()
+            if feature_image and feature_image.image:
+                image_url = feature_image.image.url
+            elif item.product.images.exists():
+                image_url = item.product.images.first().image.url
+
+            # Get available stock and price
+            if item.variation:
+                available_stock = item.variation.stock
+                unit_price = item.variation.final_price
+            else:
+                available_stock = item.product.stock
+                unit_price = item.product.selling_price
+
+            items.append({
+                'id': item.id,
+                'product_id': item.product.id,
+                'name': item.product.name,
+                'brand': item.product.brand.name,
+                'variation': item.variation.name if item.variation else None,
+                'variation_id': item.variation.id if item.variation else None,
+                'price': float(unit_price),
+                'quantity': item.quantity,
+                'subtotal': float(unit_price * item.quantity),
+                'image': image_url,
+                'in_stock': available_stock >= item.quantity,
+                'available_stock': available_stock,
+                'selected': item.selected
+            })
+
+        response_data = {
+            'items': items,
+            'total': float(cart.total),
+            'item_count': cart.items_count,
+            'total_quantity': cart.total_quantity
+        }
+        return Response(response_data)
+
+    except Exception as e:
+        return Response(
+            {'error': str(e)}, 
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR
+        )
 
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
+@csrf_protect
+@transaction.atomic
 def add_to_cart(request):
     """Add item to cart"""
-    print(f"Add to cart request data: {request.data}")
-    product_id = request.data.get('product_id')
-    quantity = int(request.data.get('quantity', 1))
-
-    if not product_id:
-        return Response({'message': 'Product ID is required'}, status=status.HTTP_400_BAD_REQUEST)
-
     try:
-        product = Product.objects.get(id=product_id)
-        if not product.is_active:
-            return Response({'message': 'Product is not available'}, status=status.HTTP_400_BAD_REQUEST)
-    except Product.DoesNotExist:
-        return Response({'message': 'Product not found'}, status=status.HTTP_404_NOT_FOUND)
+        product_id = request.data.get('product_id')
+        variation_id = request.data.get('variation_id')
+        quantity = int(request.data.get('quantity', 1))
 
-    # Check if quantity is valid
-    if quantity <= 0:
-        return Response({'message': 'Quantity must be greater than 0'}, status=status.HTTP_400_BAD_REQUEST)
+        if not product_id:
+            return Response({'message': 'Product ID is required'}, status=status.HTTP_400_BAD_REQUEST)
 
-    # Check if product is in stock
-    if product.stock < quantity:
-        return Response({'message': 'Not enough stock available'}, status=status.HTTP_400_BAD_REQUEST)
+        # Get active product
+        try:
+            product = Product.objects.get(id=product_id, is_active=True)
+        except Product.DoesNotExist:
+            return Response({'message': 'Product not found'}, status=status.HTTP_404_NOT_FOUND)
 
-    # Get or create cart
-    cart, created = Cart.objects.get_or_create(user=request.user)
-    print(f"Cart: {cart.id}, Created: {created}")
+        # Handle variations
+        variation = None
+        if variation_id:
+            try:
+                variation = product.variations.get(id=variation_id)
+            except ProductVariation.DoesNotExist:
+                return Response({'message': 'Variation not found'}, status=status.HTTP_404_NOT_FOUND)
 
-    # Check if item already exists in cart
-    try:
-        cart_item = CartItem.objects.get(cart=cart, product=product)
-        cart_item.quantity += quantity
-        cart_item.save()
-        print(f"Updated existing cart item: {cart_item.id}, New quantity: {cart_item.quantity}")
-    except CartItem.DoesNotExist:
-        cart_item = CartItem.objects.create(
+        # Use cart from middleware (already created/validated)
+        cart = request.cart
+
+        # Validate quantity
+        if quantity <= 0:
+            return Response({'message': 'Quantity must be greater than 0'}, status=status.HTTP_400_BAD_REQUEST)
+
+        # Check stock availability
+        available_stock = variation.stock if variation else product.stock
+        if available_stock < quantity:
+            return Response(
+                {'message': f'Only {available_stock} items available in stock'}, 
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        # Get or create user's cart using get_or_create
+        cart, created = Cart.objects.get_or_create(
+            user=request.user,
+            defaults={'is_active': True}
+        )
+
+        if not cart.is_active:
+            cart.reactivate()
+            cart.save()        # Try to find existing cart item
+        cart_item = CartItem.objects.select_for_update().filter(
             cart=cart,
             product=product,
-            quantity=quantity
-        )
-        print(f"Created new cart item: {cart_item.id}, Quantity: {cart_item.quantity}")
+            variation=variation
+        ).first()
 
-    # Get updated cart items for response
-    cart_items = CartItem.objects.filter(cart=cart).select_related('product')
-    total = sum(item.product.selling_price * item.quantity for item in cart_items)
+        if cart_item:
+            # Update existing item
+            new_quantity = cart_item.quantity + quantity
+            if new_quantity > available_stock:
+                return Response(
+                    {'message': f'Cannot add {quantity} more items. Only {available_stock - cart_item.quantity} additional items available.'}, 
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            cart_item.quantity = new_quantity
+            cart_item.selected = True  # Ensure item is selected
+            cart_item.save()
+        else:
+            # Create new cart item
+            cart_item = CartItem.objects.create(
+                cart=cart,
+                product=product,
+                variation=variation,
+                quantity=quantity,
+                selected=True
+            )
 
-    # Format response with cart details
-    items = []
-    for item in cart_items:
-        items.append({
-            'id': item.id,
-            'product_id': item.product.id,
-            'name': item.product.name,
-            'price': float(item.product.selling_price),
-            'quantity': item.quantity,
-            'subtotal': float(item.product.selling_price * item.quantity),
-            'image': item.product.images.filter(is_feature=True).first().image.url if item.product.images.filter(is_feature=True).exists() else None
-        })
+        # Get updated cart data
+        cart_items = CartItem.objects.filter(cart=cart).select_related(
+            'product', 'variation', 'product__brand'
+        ).prefetch_related('product__images')
 
-    return Response({
-        'message': 'Product added to cart successfully',
-        'cart': {
-            'items': items,
-            'total': float(total),
-            'item_count': len(items)
-        }
-    }, status=status.HTTP_201_CREATED)
+        # Format response
+        items = []
+        for item in cart_items:
+            # Get product image
+            image_url = None
+            feature_image = item.product.images.filter(is_feature=True).first()
+            if feature_image and feature_image.image:
+                image_url = feature_image.image.url
+            elif item.product.images.exists():
+                image_url = item.product.images.first().image.url
+
+            # Get available stock and price for this item
+            if item.variation:
+                item_stock = item.variation.stock
+                unit_price = item.variation.final_price
+            else:
+                item_stock = item.product.stock
+                unit_price = item.product.selling_price
+
+            items.append({
+                'id': item.id,
+                'product_id': item.product.id,
+                'name': item.product.name,
+                'brand': item.product.brand.name,
+                'variation': item.variation.name if item.variation else None,
+                'variation_id': item.variation.id if item.variation else None,
+                'price': float(unit_price),
+                'quantity': item.quantity,
+                'subtotal': float(unit_price * item.quantity),
+                'image': image_url,
+                'in_stock': item_stock >= item.quantity,
+                'available_stock': item_stock,
+                'selected': item.selected
+            })
+
+        return Response({
+            'message': 'Product added to cart successfully',
+            'cart': {
+                'items': items,
+                'total': float(cart.total),
+                'item_count': cart.items_count,
+                'total_quantity': cart.total_quantity
+            }
+        }, status=status.HTTP_201_CREATED)
+
+    except ValueError as e:
+        return Response({'message': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+    except Exception as e:
+        return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 @api_view(['PUT'])
 @permission_classes([IsAuthenticated])
@@ -143,7 +242,7 @@ def update_cart_item(request, item_id):
 
     # Get cart item
     try:
-        cart_item = CartItem.objects.get(id=item_id)
+        cart_item = CartItem.objects.select_related('product', 'variation').get(id=item_id)
         if cart_item.cart.user != request.user:
             return Response({'message': 'Not authorized'}, status=status.HTTP_403_FORBIDDEN)
     except CartItem.DoesNotExist:
@@ -152,17 +251,37 @@ def update_cart_item(request, item_id):
     # Delete item if quantity is 0
     if quantity <= 0:
         cart_item.delete()
-        return Response({'message': 'Item removed from cart'}, status=status.HTTP_200_OK)
+        return Response({
+            'message': 'Item removed from cart',
+            'cart_total': float(cart_item.cart.total),
+            'item_count': cart_item.cart.items_count,
+            'total_quantity': cart_item.cart.total_quantity
+        }, status=status.HTTP_200_OK)
 
     # Check if product is in stock
-    if cart_item.product.stock < quantity:
-        return Response({'message': 'Not enough stock available'}, status=status.HTTP_400_BAD_REQUEST)
+    available_stock = cart_item.variation.stock if cart_item.variation else cart_item.product.stock
+    if available_stock < quantity:
+        return Response({
+            'message': f'Only {available_stock} items available in stock'
+        }, status=status.HTTP_400_BAD_REQUEST)
 
     # Update quantity
     cart_item.quantity = quantity
     cart_item.save()
 
-    return Response({'message': 'Cart updated successfully'}, status=status.HTTP_200_OK)
+    # Get updated cart data
+    cart = cart_item.cart
+    return Response({
+        'message': 'Cart updated successfully',
+        'item': {
+            'id': cart_item.id,
+            'quantity': cart_item.quantity,
+            'subtotal': float(cart_item.subtotal)
+        },
+        'cart_total': float(cart.total),
+        'item_count': cart.items_count,
+        'total_quantity': cart.total_quantity
+    }, status=status.HTTP_200_OK)
 
 @api_view(['DELETE'])
 @permission_classes([IsAuthenticated])

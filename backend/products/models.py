@@ -5,12 +5,37 @@ class ProductCategory(models.Model):
     name = models.CharField(max_length=100)
     image = models.ImageField(upload_to='category_images/', null=True, blank=True)
     parent = models.ForeignKey('self', null=True, blank=True, on_delete=models.SET_NULL, related_name='subcategories')
+    default_variation_type = models.CharField(max_length=50, blank=True, help_text='Default name for variations in this category (e.g., "Model" for CPUs)')
 
     class Meta:
         verbose_name_plural = 'Product Categories'
 
     def __str__(self):
         return self.name
+
+    @property
+    def variation_type_display(self):
+        """Get the display name for variations in this category"""
+        return self.default_variation_type or "Variation"
+
+class CategoryVariationType(models.Model):
+    category = models.OneToOneField(ProductCategory, on_delete=models.CASCADE, related_name='variation_type')
+    name = models.CharField(max_length=50, help_text='Display name for the variation type (e.g., "Model", "Capacity", "Wattage")')
+    attribute_type = models.OneToOneField('AttributeType', on_delete=models.CASCADE, related_name='category_variation_type', null=True)
+
+    class Meta:
+        verbose_name = 'Category Variation Type'
+        verbose_name_plural = 'Category Variation Types'
+
+    def __str__(self):
+        return f"{self.category.name} - {self.name}"
+
+    def save(self, *args, **kwargs):
+        # Create corresponding AttributeType if it doesn't exist
+        if not self.attribute_type:
+            attr_type, created = AttributeType.objects.get_or_create(name=self.name)
+            self.attribute_type = attr_type
+        super().save(*args, **kwargs)
 
 class Brand(models.Model):
     name = models.CharField(max_length=100, unique=True)

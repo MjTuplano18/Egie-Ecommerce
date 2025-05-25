@@ -19,7 +19,7 @@ from django.urls import path, include
 from django.conf import settings
 from django.conf.urls.static import static
 from django.views.decorators.csrf import ensure_csrf_cookie
-from django.http import HttpResponse
+from django.http import HttpResponse, JsonResponse, JsonResponse
 from rest_framework import routers
 from products.views import ProductViewSet, CategoryViewSet, BrandViewSet, ColorViewSet, brands_by_category
 from orders import views as orders_views
@@ -37,7 +37,7 @@ router.register(r'colors', ColorViewSet)
 
 @ensure_csrf_cookie
 def get_csrf_token(request):
-    return HttpResponse("CSRF cookie set")
+    return JsonResponse({"detail": "CSRF cookie set"})
 
 # backend/config/urls.py
 # Move the API URLs before the catch-all pattern that serves the React app
