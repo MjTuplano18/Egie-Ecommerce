@@ -49,7 +49,7 @@ function App() {
   return (
     <AuthProvider>
       <CartProvider>
-        <Router>
+        <Router future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
           <OrderProvider>
             <div className="bg-[#F3F7F6] min-h-screen">
               <Main />

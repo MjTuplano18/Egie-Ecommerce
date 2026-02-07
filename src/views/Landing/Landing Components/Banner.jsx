@@ -83,7 +83,7 @@ const LandingBanner = () => {
               className="w-full h-full object-cover"
               alt="Find-the"
               loading="eager"
-              fetchpriority="high"
+              fetchPriority="high"
             />
             <div className="absolute top-2/3 left-1/4 transform -translate-y-1/2 -translate-x-1/2 max-md:translate-x-[-20%] flex gap-2 md:gap-4 z-10">
               <Link
