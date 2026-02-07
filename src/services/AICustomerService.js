@@ -623,31 +623,55 @@ Credit card installment plans may be available for purchases over PHP 3,000. Con
         if (!userId) {
           return 'Please log in to track your order. If you have your order number, you can also provide it for tracking.';
         }
-        const trackMatch = message.match(/#?(\d{6,})/);
-        if (trackMatch) {
-          return await this.trackOrder(trackMatch[1], userId);
+        // Support order number formats: EGIE-20260120-28913 or just the numeric parts
+        const fullTrackMatch = message.match(/EGIE-\d{8}-\d{5}/i);
+        const numericTrackMatch = message.match(/\b(\d{8})-?(\d{5})\b/);
+        let trackOrderNumber = null;
+        if (fullTrackMatch) {
+          trackOrderNumber = fullTrackMatch[0].toUpperCase();
+        } else if (numericTrackMatch) {
+          trackOrderNumber = `EGIE-${numericTrackMatch[1]}-${numericTrackMatch[2]}`;
         }
-        return 'Please provide your order number to track your order. For example: "Track order #123456"';
+        if (trackOrderNumber) {
+          return await this.trackOrder(trackOrderNumber, userId);
+        }
+        return 'Please provide your order number to track your order. For example: "Track order EGIE-20260120-28913"';
 
       case 'order_details':
         if (!userId) {
           return 'Please log in to view order details.';
         }
-        const orderMatch = message.match(/#?(\d{6,})/);
-        if (orderMatch) {
-          return await this.getOrderByNumber(orderMatch[1], userId);
+        // Support order number formats: EGIE-20260120-28913 or just the numeric parts
+        const fullOrderMatch = message.match(/EGIE-\d{8}-\d{5}/i);
+        const numericOrderMatch = message.match(/\b(\d{8})-?(\d{5})\b/);
+        let detailOrderNumber = null;
+        if (fullOrderMatch) {
+          detailOrderNumber = fullOrderMatch[0].toUpperCase();
+        } else if (numericOrderMatch) {
+          detailOrderNumber = `EGIE-${numericOrderMatch[1]}-${numericOrderMatch[2]}`;
         }
-        return 'Please provide your order number. For example: "Order #123456"';
+        if (detailOrderNumber) {
+          return await this.getOrderByNumber(detailOrderNumber, userId);
+        }
+        return 'Please provide your order number. For example: "Order EGIE-20260120-28913"';
 
       case 'cancel_order':
         if (!userId) {
           return 'Please log in to cancel an order.';
         }
-        const cancelMatch = message.match(/#?(\d{6,})/);
-        if (cancelMatch) {
-          return await this.requestCancellation(cancelMatch[1], userId, 'Customer requested cancellation');
+        // Support order number formats: EGIE-20260120-28913 or just the numeric parts
+        const fullCancelMatch = message.match(/EGIE-\d{8}-\d{5}/i);
+        const numericCancelMatch = message.match(/\b(\d{8})-?(\d{5})\b/);
+        let cancelOrderNumber = null;
+        if (fullCancelMatch) {
+          cancelOrderNumber = fullCancelMatch[0].toUpperCase();
+        } else if (numericCancelMatch) {
+          cancelOrderNumber = `EGIE-${numericCancelMatch[1]}-${numericCancelMatch[2]}`;
         }
-        return 'Please provide your order number to cancel. For example: "Cancel order #123456"';
+        if (cancelOrderNumber) {
+          return await this.requestCancellation(cancelOrderNumber, userId, 'Customer requested cancellation');
+        }
+        return 'Please provide your order number to cancel. For example: "Cancel order EGIE-20260120-28913"';
 
       case 'shipping_policy':
         return this.getShippingPolicy();

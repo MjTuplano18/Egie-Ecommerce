@@ -298,6 +298,7 @@ export const searchSketchfabModels = async (searchTerm, options = {}) => {
 
   // Use the request queue to avoid rate limiting
   return queueRequest(async () => {
+    let data;
     try {
       const params = new URLSearchParams({
         q: searchTerm,
@@ -340,9 +341,12 @@ export const searchSketchfabModels = async (searchTerm, options = {}) => {
       data = await response.json();
       console.log('✅ Found ' + (data.results?.length || 0) + ' models for "' + searchTerm + '"');
     
-    // Score and sort models by name similarity to search term
-    const searchTermLower = searchTerm.toLowerCase();
-    const searchWords = searchTermLower.split(/\s+/).filter(w => w.length > 1);
+      // Get downloadable models from the response
+      const downloadableModels = (data.results || []).filter(model => model.isDownloadable !== false);
+
+      // Score and sort models by name similarity to search term
+      const searchTermLower = searchTerm.toLowerCase();
+      const searchWords = searchTermLower.split(/\s+/).filter(w => w.length > 1);
     
     // Component type keywords to filter out wrong types
     const componentTypeKeywords = {

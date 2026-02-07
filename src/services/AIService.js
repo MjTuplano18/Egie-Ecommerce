@@ -580,42 +580,68 @@ class AIService {
     try {
       const { data: { user }, error: authError } = await supabase.auth.getUser();
       
+      console.log('🔍 getCustomerOrder - orderNumber:', orderNumber);
+      console.log('🔍 getCustomerOrder - user:', user?.id, user?.email);
+      
       if (authError || !user) {
+        console.log('❌ getCustomerOrder - No user logged in');
         return { 
           data: null, 
           error: 'Please sign in to view your orders' 
         };
       }
 
+      // First, get the basic order data (simplified query to avoid relationship errors)
       const { data, error } = await supabase
         .from('orders')
-        .select(`
-          *,
-          shipping_addresses (
-            recipient_name,
-            phone_number,
-            street_address,
-            city,
-            province
-          ),
-          order_items (
-            quantity,
-            price_at_purchase,
-            products (
-              name,
-              image_url
-            )
-          )
-        `)
+        .select('*')
         .eq('order_number', orderNumber)
         .eq('user_id', user.id)
         .single();
       
+      console.log('🔍 getCustomerOrder - query result:', { data: !!data, error: error?.message });
+      
       if (error) {
+        console.log('❌ Query error details:', error);
+        // Try without user_id filter to see if order exists at all
+        const { data: anyOrder } = await supabase
+          .from('orders')
+          .select('user_id, order_number')
+          .eq('order_number', orderNumber)
+          .single();
+        
+        if (anyOrder) {
+          console.log('⚠️ Order exists but belongs to user_id:', anyOrder.user_id);
+          console.log('⚠️ Current user_id:', user.id);
+        }
+        
         return { 
           data: null, 
           error: 'Order not found. Please check your order number.' 
         };
+      }
+
+      // If we got the order, try to fetch order items separately
+      if (data) {
+        try {
+          const { data: orderItems } = await supabase
+            .from('order_items')
+            .select(`
+              quantity,
+              price_at_purchase,
+              products (
+                name,
+                image_url
+              )
+            `)
+            .eq('order_id', data.id);
+          
+          if (orderItems) {
+            data.order_items = orderItems;
+          }
+        } catch (itemError) {
+          console.log('⚠️ Could not fetch order items:', itemError);
+        }
       }
       
       return { data, error: null };
@@ -633,49 +659,125 @@ class AIService {
    * @returns {string} Formatted order status message
    */
   formatOrderStatus(order) {
+    // Status messages based on actual database status values
     const statusMessages = {
-      'pending': 'Your order is pending confirmation. We\'ll update you soon!',
-      'confirmed': 'Order confirmed! We\'re preparing your items for shipment.',
-      'processing': 'Your order is being packed and will ship soon.',
-      'ready_for_pickup': 'Great news! Your order is ready for pickup at our store.',
-      'shipped': 'Your order is on the way! Expected delivery in 3-7 days.',
-      'delivered': 'Your order has been delivered. Hope you love it!',
-      'cancelled': 'This order was cancelled.',
-      'completed': 'Order completed. Thank you for shopping with us!'
+      'pending': '⏳ Your order is pending confirmation. We\'ll update you soon!',
+      'confirmed': '✅ Order confirmed! We\'re preparing your items.',
+      'processing': '📦 Your order is being processed and prepared.',
+      'ready_for_pickup': '🏪 Great news! Your order is ready for pickup at our store.',
+      'shipped': '🚚 Your order has been shipped and is on the way!',
+      'delivered': '✅ Your order has been delivered. Enjoy!',
+      'cancelled': '❌ This order was cancelled.',
+      'completed': '🎉 Order completed. Thank you for shopping with us!'
     };
     
+    // Delivery time estimates based on status
     const deliveryETA = {
-      'pending': '1-2 business days to confirm',
-      'confirmed': '1-3 business days to ship',
-      'processing': '1-2 business days',
-      'ready_for_pickup': 'Available now during store hours',
-      'shipped': '3-7 business days',
-      'delivered': 'Already delivered',
-      'cancelled': 'N/A',
-      'completed': 'Completed'
+      'pending': 'Waiting for confirmation (1-2 business days)',
+      'confirmed': 'Will be prepared soon (1-2 business days)',
+      'processing': 'Being prepared for shipment/pickup',
+      'ready_for_pickup': '✅ Available NOW - Visit our store during business hours',
+      'shipped': 'In transit (3-7 business days)',
+      'delivered': '✅ Already delivered',
+      'cancelled': 'N/A - Order cancelled',
+      'completed': '✅ Order completed'
     };
     
     const paymentStatusMsg = {
-      'pending': 'Payment Pending',
-      'paid': 'Payment Confirmed ✓',
-      'failed': 'Payment Failed - Please contact support',
-      'refunded': 'Payment Refunded'
+      'pending': '⏳ Payment Pending',
+      'paid': '✅ Payment Confirmed',
+      'failed': '❌ Payment Failed - Please contact support',
+      'refunded': '💰 Payment Refunded'
     };
+
+    // Determine delivery type display
+    const deliveryTypeDisplay = order.delivery_type === 'store_pickup' 
+      ? '🏪 Store Pickup' 
+      : '🚚 Home Delivery';
+
+    // Format the order total (use 'total' field from database)
+    const orderTotal = order.total ? `₱${parseFloat(order.total).toLocaleString()}` : 'N/A';
     
-    return `📦 **Order #${order.order_number}**
+    // Format the order date
+    const orderDate = order.created_at 
+      ? new Date(order.created_at).toLocaleDateString('en-PH', { 
+          year: 'numeric', 
+          month: 'long', 
+          day: 'numeric',
+          hour: '2-digit',
+          minute: '2-digit'
+        })
+      : 'N/A';
 
-**Status:** ${statusMessages[order.status] || order.status}
-**Expected:** ${deliveryETA[order.status]}
-**Payment:** ${paymentStatusMsg[order.payment_status] || order.payment_status}
-**Total:** ₱${order.total_amount.toLocaleString()}
-**Delivery:** ${order.delivery_type === 'local_delivery' ? 'Home Delivery' : 'Store Pickup'}
-**Order Date:** ${new Date(order.created_at).toLocaleDateString()}
+    // Build a clean, simple response
+    let response = `📦 Order #${order.order_number}
 
-${order.delivery_type === 'local_delivery' && order.shipping_addresses ? 
-  `**Delivering to:** ${order.shipping_addresses.street_address}, ${order.shipping_addresses.city}` : 
-  ''}
+${statusMessages[order.status] || order.status}
 
-Need help with this order? Contact support at support@egiegameshop.com with your order number.`;
+${deliveryTypeDisplay}
+⏱️ ${deliveryETA[order.status] || 'Checking...'}
+💳 ${paymentStatusMsg[order.payment_status] || order.payment_status || 'Pending'}
+💰 Total: ${orderTotal}
+📅 Ordered: ${orderDate}`;
+
+    // Add tracking info if shipped
+    if (order.status === 'shipped' && order.tracking_number) {
+      response += `
+
+📦 Tracking #: ${order.tracking_number}`;
+      if (order.courier_name) {
+        response += `
+🚛 Courier: ${order.courier_name}`;
+      }
+    }
+
+    // Add shipping address for home delivery
+    if (order.delivery_type === 'local_delivery' && order.shipping_addresses) {
+      const addr = order.shipping_addresses;
+      response += `
+
+📍 Delivering To:
+${addr.recipient_name || 'Customer'}
+${addr.street_address || ''}, ${addr.city || ''}, ${addr.province || ''}`;
+      if (addr.phone_number) {
+        response += `
+📞 ${addr.phone_number}`;
+      }
+    }
+
+    // Add store pickup instructions
+    if (order.delivery_type === 'store_pickup') {
+      if (order.status === 'ready_for_pickup') {
+        response += `
+
+🏪 Your order is ready for pickup at NovaTech Inc.
+Please bring a valid ID and your order number.`;
+      } else if (order.status === 'completed') {
+        response += `
+
+🏪 Order picked up successfully!
+Thank you for shopping with us!`;
+      }
+    }
+
+    // Add order items if available
+    if (order.order_items && order.order_items.length > 0) {
+      response += `
+
+🛒 Items:`;
+      order.order_items.forEach((item, index) => {
+        const productName = item.products?.name || item.product_name || 'Product';
+        const qty = item.quantity || 1;
+        response += `
+• ${productName} (×${qty})`;
+      });
+    }
+
+    response += `
+
+Need help? Reply here or email support@novatech.com`;
+
+    return response;
   }
 
   /**
@@ -1833,6 +1935,45 @@ Remember: You're a world-class e-commerce AI trained on shopping psychology, nat
 
       const userMessageText = lastUserMessage.text;
 
+      // 🆕 PRIORITY CHECK: Direct order number detection
+      // If user sends just an order number (or message containing order number), handle it immediately
+      const fullOrderMatch = userMessageText.match(/EGIE-\d{8}-\d{5}/i);
+      const numericOrderMatch = userMessageText.match(/\b(\d{8})-?(\d{5})\b/);
+      
+      let detectedOrderNumber = null;
+      if (fullOrderMatch) {
+        detectedOrderNumber = fullOrderMatch[0].toUpperCase();
+      } else if (numericOrderMatch) {
+        // Reconstruct the full order number from numeric parts
+        detectedOrderNumber = `EGIE-${numericOrderMatch[1]}-${numericOrderMatch[2]}`;
+      }
+      
+      // If we detected an order number, look it up immediately
+      if (detectedOrderNumber) {
+        console.log('📦 Order number detected:', detectedOrderNumber);
+        const orderResult = await this.getCustomerOrder(detectedOrderNumber);
+        
+        if (orderResult.data) {
+          console.log('✅ Order found in database:', orderResult.data.status);
+          // Return formatted order status directly from database
+          return {
+            success: true,
+            message: this.formatOrderStatus(orderResult.data),
+            intent: { intentType: 'order_tracking', orderNumber: detectedOrderNumber },
+            matchedProducts: [],
+            isOrderStatus: true
+          };
+        } else {
+          console.log('❌ Order not found:', orderResult.error);
+          return {
+            success: true,
+            message: `I couldn't find order ${detectedOrderNumber}. Please check your order number and make sure you're signed in with the account that placed this order. You can view all your orders on the 'My Orders' page.`,
+            intent: { intentType: 'order_tracking' },
+            matchedProducts: []
+          };
+        }
+      }
+
       // 🆕 Step 0: Check if this is a store policy/FAQ question
       const isStoreQuery = this.isStoreInfoQuery(userMessageText);
       let storeInfo = [];
@@ -1862,17 +2003,29 @@ Remember: You're a world-class e-commerce AI trained on shopping psychology, nat
         // Check if it's an order tracking question
         const isOrderTracking = /order|track|status|where.*my/i.test(userMessageText);
         if (isOrderTracking) {
-          // Check if order number is mentioned
-          const orderNumberMatch = userMessageText.match(/\b\d{8,}\b/);
-          if (orderNumberMatch) {
-            const orderResult = await this.getCustomerOrder(orderNumberMatch[0]);
+          // Check if order number is mentioned - support both formats:
+          // 1. Full format: EGIE-20260120-28913
+          // 2. Just the numeric part: 20260120-28913 or 2026012028913
+          const fullOrderMatch = userMessageText.match(/EGIE-\d{8}-\d{5}/i);
+          const numericOrderMatch = userMessageText.match(/\b(\d{8})-?(\d{5})\b/);
+          
+          let orderNumber = null;
+          if (fullOrderMatch) {
+            orderNumber = fullOrderMatch[0].toUpperCase();
+          } else if (numericOrderMatch) {
+            // Reconstruct the full order number from numeric parts
+            orderNumber = `EGIE-${numericOrderMatch[1]}-${numericOrderMatch[2]}`;
+          }
+          
+          if (orderNumber) {
+            const orderResult = await this.getCustomerOrder(orderNumber);
             
             if (orderResult.data) {
               // Return formatted order status directly
               return {
                 success: true,
                 message: this.formatOrderStatus(orderResult.data),
-                intent: { intentType: 'order_tracking', orderNumber: orderNumberMatch[0] },
+                intent: { intentType: 'order_tracking', orderNumber: orderNumber },
                 matchedProducts: [],
                 isOrderStatus: true
               };
